@@ -15,8 +15,9 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
 
     const inviteResponse = await admin.request.post('/api/admin/invites', {
       data: { firstName: 'דנה בדיקה', sourceSheet: 'מוזמנים דנה' },
+      headers: { Origin: baseURL! },
     });
-    expect(inviteResponse.status()).toBe(201);
+    expect(inviteResponse.status(), await inviteResponse.text()).toBe(201);
     const { shortLink } = await inviteResponse.json() as { shortLink: string };
 
     const guestPage = await guest.newPage();
@@ -31,7 +32,7 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
     expect(seatingResponse.ok()).toBeTruthy();
     const current = await seatingResponse.json() as { plan: { tables: { guests: string[] }[] }; revision: number };
     const plan = { tables: current.plan.tables.map(table => ({ ...table, guests: table.guests.filter(id => id !== 'demo-a-3') })) };
-    const resetResponse = await admin.request.put('/api/admin/seating', { data: { plan, revision: current.revision } });
+    const resetResponse = await admin.request.put('/api/admin/seating', { data: { plan, revision: current.revision }, headers: { Origin: baseURL! } });
     expect(resetResponse.ok()).toBeTruthy();
 
     await adminPage.goto('/admin/seating');
