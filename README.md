@@ -25,7 +25,7 @@ Open the URL printed by Vite. `DEMO_MODE=1` opens `/admin` and `/find-table` wit
 
 ## Configure your event
 
-Edit `lib/event-config.ts` for event dates, venue and source sheet names. Table 2 has a special capacity policy in the seating model; change the model and its tests if your event uses a different table. Search the `app/` directory for the sample hosts, copy and date to tailor all UI text. Replace the placeholder SVGs under `public/`. The sample read source has two tabs of rows A:T. Review `lib/seating-model.ts` and `lib/demo-data.ts` before connecting real data.
+Edit the typed fictional example in `config/event.ts` for hosts, monogram, date and time, venue, contact, sheet names, invite ID prefixes and seating policy. `lib/event-config.ts` derives display dates and map links from it. The default reserved table is 2, with overflow allowed; change `seating.reservedTableNumber` and `allowReservedTableOverflow` for your event. Replace the fictional SVG artwork under `public/` if the demo design does not fit. The sample read source has two tabs of rows A:T. Review `lib/seating-model.ts` and `lib/demo-data.ts` before connecting real data. Changing an event's invite ID prefixes after links have been issued invalidates those links.
 
 Copy `.dev.vars.example` into `.dev.vars` for local development. Set production secrets with Wrangler or your deployment secret manager. Never commit `.dev.vars`, a database, a real guest export or invitation links.
 

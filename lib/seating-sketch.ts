@@ -1,3 +1,4 @@
+import { eventConfig } from './event-config';
 import type { SeatingTable } from './seating-model';
 // The saved 'round' key now represents square tables; keep it to preserve existing sketches.
 export type SketchKind = 'round' | 'banquet' | 'dj' | 'bar' | 'dance';
@@ -78,7 +79,7 @@ export function resizeSketchTables(sketch: SeatingSketch, ids: string[], side: n
   }) };
 }
 export function createInitialSketch(): SeatingSketch {
-  const items: SketchItem[] = Array.from({ length: 16 }, (_, i) => ({ id: `round-${i + 1}`, kind: 'round', label: `שולחן ${i + 1}`, seats: 12, x: 95 + (i % 4) * 230, y: 65 + Math.floor(i / 4) * 165, width: DEFAULT_TABLE_SIDE, height: DEFAULT_TABLE_SIDE, rotation: 0 }));
+  const items: SketchItem[] = Array.from({ length: 16 }, (_, i) => ({ id: `round-${i + 1}`, kind: 'round', label: `שולחן ${i + 1}`, seats: eventConfig.seating.standardCapacity, x: 95 + (i % 4) * 230, y: 65 + Math.floor(i / 4) * 165, width: DEFAULT_TABLE_SIDE, height: DEFAULT_TABLE_SIDE, rotation: 0 }));
   items.push(
     { id: 'dj', kind: 'dj', label: 'עמדת DJ', seats: 0, x: 65, y: 775, width: 130, height: 170, rotation: 0 },
     { id: 'bar', kind: 'bar', label: 'בר', seats: 0, x: 780, y: 775, width: 155, height: 140, rotation: 0 },

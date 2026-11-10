@@ -94,7 +94,7 @@ async function decodeShortInviteToken(token: string, secret: string): Promise<In
     if (sourceRow < 2 || maxGuests < 1 || maxGuests > 20 || !firstName || firstName.length > 80) {
       throw new Error("Invalid short invite payload");
     }
-    const side = sourceCode === 0 ? "dana" : "yoav";
+    const side = eventConfig.legacyInviteSides[sourceCode];
     return {
       inviteId: `${side}-${String(sourceRow).padStart(4, "0")}`,
       firstName,
@@ -115,7 +115,7 @@ async function decodeShortInviteToken(token: string, secret: string): Promise<In
     const inviteId = decoder.decode(payload.slice(4, 4 + inviteIdLength)).trim();
     const firstName = decoder.decode(payload.slice(4 + inviteIdLength)).trim();
     if (
-      !/^[oy]-[A-Za-z0-9_-]{6,32}$/.test(inviteId) ||
+      !eventConfig.inviteIdPrefixes.some(prefix => inviteId.startsWith(`${prefix}-`) && /^[A-Za-z0-9_-]{6,32}$/.test(inviteId.slice(prefix.length + 1))) ||
       maxGuests < 0 ||
       maxGuests > 20 ||
       !firstName ||
@@ -138,9 +138,9 @@ async function decodeShortInviteToken(token: string, secret: string): Promise<In
 
 export function createStableInviteId(sourceSheet: string) {
   const prefix = sourceSheet === eventConfig.sheetNames[0]
-    ? "o"
+    ? eventConfig.inviteIdPrefixes[0]
     : sourceSheet === eventConfig.sheetNames[1]
-      ? "y"
+      ? eventConfig.inviteIdPrefixes[1]
       : "";
   if (!prefix) throw new Error("Invalid invite source");
   const randomBytes = crypto.getRandomValues(new Uint8Array(6));
@@ -169,8 +169,8 @@ async function decodeOriginalInviteToken(token: string): Promise<InviteDetails> 
   if (!inviteTokenSecret && !inviteShortTokenSecret && token === "preview") {
     return {
       inviteId: "preview-invite",
-      firstName: "דנה",
-      fullName: "דנה ישראלי",
+      firstName: eventConfig.previewGuestName.split(' ')[0],
+      fullName: eventConfig.previewGuestName,
       maxGuests: 3,
       sourceSheet: eventConfig.sheetNames[0],
       sourceRow: 2,
