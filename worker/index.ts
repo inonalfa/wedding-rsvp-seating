@@ -8,6 +8,9 @@ import { limitPublicRequest } from "../lib/public-rate-limit";
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   DB: D1Database;
+  INVITE_TOKEN_TTL_SECONDS?: string;
+  INVITE_TOKENS_EXPIRE_AT?: string;
+  SEATING_TOKEN_EPOCH?: string;
   INVITE_TOKEN_SECRET?: string;
   INVITE_SHORT_TOKEN_SECRET?: string;
   MAKE_WEBHOOK_URL?: string;
@@ -69,6 +72,9 @@ const worker = {
     }
     request = new Request(request, { headers });
     const config = {
+      inviteTokenTtlSeconds: env.INVITE_TOKEN_TTL_SECONDS,
+      inviteTokensExpireAt: env.INVITE_TOKENS_EXPIRE_AT,
+      seatingTokenEpoch: env.SEATING_TOKEN_EPOCH,
       inviteTokenSecret: env.INVITE_TOKEN_SECRET,
       inviteShortTokenSecret: env.INVITE_SHORT_TOKEN_SECRET,
       makeWebhookUrl: env.MAKE_WEBHOOK_URL,

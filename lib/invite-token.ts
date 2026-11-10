@@ -40,13 +40,17 @@ export async function createShortInviteToken(details: InviteDetails): Promise<st
   const inviteIdBytes = new TextEncoder().encode(details.inviteId);
   const nameBytes = new TextEncoder().encode(details.firstName);
   if (inviteIdBytes.length < 3 || inviteIdBytes.length > 64) throw new Error("Invalid invite id");
-  const payload = new Uint8Array(4 + inviteIdBytes.length + nameBytes.length);
-  payload[0] = 2;
+  const ttl = Number(getWeddingRuntimeConfig().inviteTokenTtlSeconds ?? 90 * 24 * 60 * 60);
+  if (!Number.isSafeInteger(ttl) || ttl < 1 || ttl > 365 * 24 * 60 * 60) throw new Error("Invalid invitation TTL");
+  const expires = Math.floor(Date.now() / 1000) + ttl;
+  const payload = new Uint8Array(8 + inviteIdBytes.length + nameBytes.length);
+  payload[0] = 3;
   payload[1] = sourceCode;
   payload[2] = details.maxGuests;
   payload[3] = inviteIdBytes.length;
-  payload.set(inviteIdBytes, 4);
-  payload.set(nameBytes, 4 + inviteIdBytes.length);
+  new DataView(payload.buffer).setUint32(4, expires);
+  payload.set(inviteIdBytes, 8);
+  payload.set(nameBytes, 8 + inviteIdBytes.length);
 
   const key = await crypto.subtle.importKey(
     "raw",
@@ -56,15 +60,15 @@ export async function createShortInviteToken(details: InviteDetails): Promise<st
     ["sign"],
   );
   const signature = new Uint8Array(await crypto.subtle.sign("HMAC", key, payload));
-  const packed = new Uint8Array(payload.length + 8);
+  const packed = new Uint8Array(payload.length + 16);
   packed.set(payload);
-  packed.set(signature.slice(0, 8), payload.length);
+  packed.set(signature.slice(0, 16), payload.length);
   return encodeBase64Url(packed);
 }
 
 async function decodeShortInviteToken(token: string, secret: string): Promise<InviteDetails> {
   const packed = decodeBase64Url(token);
-  const tagLength = 8;
+  const tagLength = packed[0] === 3 ? 16 : 8;
   if (packed.length < 15) throw new Error("Malformed short invite token");
 
   const payload = packed.slice(0, -tagLength);
@@ -105,15 +109,17 @@ async function decodeShortInviteToken(token: string, secret: string): Promise<In
     };
   }
 
-  if (version === 2) {
+  if (version === 2 || version === 3) {
+    const headerLength = version === 3 ? 8 : 4;
+    if (version === 3 && (payload.length < 9 || new DataView(payload.buffer).getUint32(4) <= Math.floor(Date.now() / 1000))) throw new Error("Invitation expired");
     const maxGuests = payload[2];
     const inviteIdLength = payload[3];
-    if (inviteIdLength < 3 || inviteIdLength > 64 || 4 + inviteIdLength >= payload.length) {
+    if (inviteIdLength < 3 || inviteIdLength > 64 || headerLength + inviteIdLength >= payload.length) {
       throw new Error("Invalid short invite payload");
     }
     const decoder = new TextDecoder("utf-8", { fatal: true });
-    const inviteId = decoder.decode(payload.slice(4, 4 + inviteIdLength)).trim();
-    const firstName = decoder.decode(payload.slice(4 + inviteIdLength)).trim();
+    const inviteId = decoder.decode(payload.slice(headerLength, headerLength + inviteIdLength)).trim();
+    const firstName = decoder.decode(payload.slice(headerLength + inviteIdLength)).trim();
     if (
       !eventConfig.inviteIdPrefixes.some(prefix => inviteId.startsWith(`${prefix}-`) && /^[A-Za-z0-9_-]{6,32}$/.test(inviteId.slice(prefix.length + 1))) ||
       maxGuests < 0 ||
@@ -204,6 +210,8 @@ async function decodeOriginalInviteToken(token: string): Promise<InviteDetails> 
 }
 
 export async function decodeInviteToken(token:string):Promise<InviteDetails> {
+ const deadline=getWeddingRuntimeConfig().inviteTokensExpireAt;
+ if(deadline && (!Number.isFinite(Date.parse(deadline)) || Date.now()>=Date.parse(deadline)))throw new Error('Invitations expired');
  const details=await decodeOriginalInviteToken(token);
  if(token==='preview')return details;
  const canonicalId=await resolveInviteId(details.inviteId);

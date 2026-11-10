@@ -1,5 +1,8 @@
 import { requestContext } from './request-context';
 export type WeddingRuntimeConfig = {
+  inviteTokenTtlSeconds?: string;
+  inviteTokensExpireAt?: string;
+  seatingTokenEpoch?: string;
   inviteTokenSecret?: string;
   inviteShortTokenSecret?: string;
   makeWebhookUrl?: string;
