@@ -5,6 +5,8 @@ import { decodeInviteToken, type InviteDetails } from "@/lib/invite-token";
 import { getWeddingRuntimeConfig } from "@/lib/runtime-config";
 import { formatWebhookDateTime } from "@/lib/webhook-date";
 
+import { rsvpGuestLimit } from "@/lib/rsvp-form";
+
 type RSVPRequest = {
   fullName?: unknown;
   attendance?: unknown;
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
       : null;
     const message = cleanText(payload.message, 500);
     const requestedCount = Number(payload.guestCount);
+    const limit = rsvpGuestLimit(invite?.maxGuests);
     const guestCount = attendance === "yes" ? requestedCount : 0;
 
     if (fullName.length < 2) {
@@ -59,9 +62,9 @@ export async function POST(request: Request) {
     }
     if (
       attendance === "yes" &&
-      (!Number.isSafeInteger(guestCount) || guestCount < 1 || guestCount > 1_000)
+      (!Number.isSafeInteger(guestCount) || guestCount < 1 || guestCount > limit)
     ) {
-      return Response.json({ error: "מספר המשתתפים אינו תקין" }, { status: 400 });
+      return Response.json({ error: `מספר המשתתפים חייב להיות בין 1 ל-${limit}` }, { status: 400 });
     }
 
     await ensureRsvpSchema();

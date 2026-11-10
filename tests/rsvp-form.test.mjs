@@ -4,7 +4,7 @@ import { validateRsvp, rsvpPayload } from "../lib/rsvp-form.ts";
 
 const fields = { fullName: "דנה לוי", attendance: "yes", guestCount: "2", message: "" };
 
-test("accepts positive guest counts without the legacy invitation cap", () => {
+test("general RSVP accepts positive guest counts up to the global limit", () => {
   for (const count of ["1", "2", "50", "1000"]) {
     assert.deepEqual(validateRsvp({ ...fields, guestCount: count }), {});
     assert.equal(rsvpPayload({ ...fields, guestCount: count }, "old-signed-invite", "").guestCount, Number(count));
@@ -31,4 +31,10 @@ test("preserves the signed invite and message when an answer is sent or updated"
   assert.deepEqual(rsvpPayload({ ...fields, fullName: "  דנה ויואב  ", message: "  רגישות לאגוזים  " }, "signed-personal-token", ""), {
     fullName: "דנה ויואב", attendance: "yes", guestCount: 2, message: "רגישות לאגוזים", website: "", inviteToken: "signed-personal-token",
   });
+});
+
+test("personal RSVP respects the signed invite limit", () => {
+  assert.deepEqual(validateRsvp(fields, 2), {});
+  assert.ok(validateRsvp({ ...fields, guestCount: "3" }, 2).guestCount);
+  assert.deepEqual(validateRsvp({ ...fields, guestCount: "50" }, 0), {});
 });

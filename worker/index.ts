@@ -8,6 +8,9 @@ import { limitPublicRequest } from "../lib/public-rate-limit";
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   DB: D1Database;
+  INVITE_TOKEN_TTL_SECONDS?: string;
+  INVITE_TOKENS_EXPIRE_AT?: string;
+  SEATING_TOKEN_EPOCH?: string;
   INVITE_TOKEN_SECRET?: string;
   INVITE_SHORT_TOKEN_SECRET?: string;
   MAKE_WEBHOOK_URL?: string;
@@ -59,13 +62,19 @@ const worker = {
       headers.delete('oai-authenticated-user-email');
       headers.delete('oai-authenticated-user-full-name');
       headers.delete('oai-authenticated-user-full-name-encoding');
-      if (admin && !service) {
-        if ((env.DEMO_MODE !== '1' || env.DEMO_AUTH === '1') && !(env.ADMIN_PASSWORD && await validBasicPassword(request, env.ADMIN_PASSWORD))) return authRequired('Wedding admin');
-        headers.set('oai-authenticated-user-email', env.ADMIN_EMAILS?.split(',')[0]?.trim() || 'demo@example.test');
+      if (admin) {
+        const authenticated = (env.DEMO_MODE === '1' && env.DEMO_AUTH !== '1') ||
+          !!(env.ADMIN_PASSWORD && await validBasicPassword(request, env.ADMIN_PASSWORD));
+        if (authenticated) headers.set('oai-authenticated-user-email', env.ADMIN_EMAILS?.split(',')[0]?.trim() || 'demo@example.test');
+        else if (!service) return authRequired('Wedding admin');
+        // The sync handler independently checks service Bearer credentials.
       } else if (staff && (env.DEMO_MODE !== '1' || env.DEMO_AUTH === '1') && !(env.STAFF_PASSWORD && await validBasicPassword(request, env.STAFF_PASSWORD))) return authRequired('Wedding staff');
     }
     request = new Request(request, { headers });
     const config = {
+      inviteTokenTtlSeconds: env.INVITE_TOKEN_TTL_SECONDS,
+      inviteTokensExpireAt: env.INVITE_TOKENS_EXPIRE_AT,
+      seatingTokenEpoch: env.SEATING_TOKEN_EPOCH,
       inviteTokenSecret: env.INVITE_TOKEN_SECRET,
       inviteShortTokenSecret: env.INVITE_SHORT_TOKEN_SECRET,
       makeWebhookUrl: env.MAKE_WEBHOOK_URL,

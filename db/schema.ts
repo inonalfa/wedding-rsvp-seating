@@ -154,3 +154,8 @@ export const publicRateLimits = sqliteTable('public_rate_limits', {
   windowStart: integer('window_start').notNull(),
   hits: integer('hits').notNull(),
 });
+
+export const webhookNonces = sqliteTable('webhook_nonces', {
+  key: text('key').primaryKey(),
+  expiresAt: integer('expires_at').notNull(),
+}, table => [index('webhook_nonces_expiry_idx').on(table.expiresAt)]);

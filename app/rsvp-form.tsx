@@ -2,13 +2,13 @@
 import { eventConfig, eventHosts, eventWazeUrl } from "@/lib/event-config";
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
-import { rsvpPayload, validateRsvp, type Attendance, type RsvpErrors } from "@/lib/rsvp-form";
+import { rsvpPayload, rsvpGuestLimit, validateRsvp, type Attendance, type RsvpErrors } from "@/lib/rsvp-form";
 import { Icon } from "./wedding-icons";
 
 
 export const wazeUrl = eventWazeUrl;
 
-export type InviteDetails = { inviteId: string; firstName: string; fullName: string; token: string; hideAdultsNote?: boolean };
+export type InviteDetails = { inviteId: string; firstName: string; fullName: string; token: string; maxGuests: number; hideAdultsNote?: boolean };
 export type InviteStatus = "loading" | "ready" | "general" | "error";
 
 export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }: {
@@ -31,11 +31,16 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
   const resultRef = useRef<HTMLDivElement>(null);
   const controller = useRef<AbortController | null>(null);
   const unavailable = inviteStatus === "loading" || inviteStatus === "error";
+  const guestLimit = rsvpGuestLimit(invite?.maxGuests);
   const currentCount = Number.isSafeInteger(Number(guestCount)) && Number(guestCount) >= 1 ? Number(guestCount) : 1;
 
   useEffect(() => {
     if (invite && !nameTouched.current) setFullName(invite.fullName);
   }, [invite]);
+
+  useEffect(() => {
+    setGuestCount(previous => Number(previous) > guestLimit ? String(guestLimit) : previous);
+  }, [guestLimit]);
 
   useEffect(() => () => controller.current?.abort(), []);
 
@@ -44,7 +49,7 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
   }, [status]);
 
   function adjustCount(delta: number) {
-    const next = Math.max(1, currentCount + delta);
+    const next = Math.min(guestLimit, Math.max(1, currentCount + delta));
     if (Number.isSafeInteger(next)) setGuestCount(String(next));
     setErrors(previous => ({ ...previous, guestCount: undefined }));
   }
@@ -53,7 +58,7 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
     event.preventDefault();
     if (busy.current || unavailable) return;
     const fields = { fullName, attendance, guestCount, message };
-    const nextErrors = validateRsvp(fields);
+    const nextErrors = validateRsvp(fields, invite?.maxGuests);
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length) {
       if (nextErrors.fullName) nameRef.current?.focus();
@@ -123,7 +128,7 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
 
       <div className="form-field"><label className="field-label" htmlFor="guest-name">שם מלא</label><input id="guest-name" ref={nameRef} name="fullName" type="text" autoComplete="name" placeholder="איך לרשום אתכם?" value={fullName} onChange={event => { nameTouched.current = true; setFullName(event.target.value); setErrors(previous => ({ ...previous, fullName: undefined })); }} maxLength={80} required aria-invalid={Boolean(errors.fullName)} aria-describedby={errors.fullName ? "name-error" : undefined} />{errors.fullName && <p className="field-error" id="name-error">{errors.fullName}</p>}</div>
 
-      {attendance === "yes" && <div className="guest-field"><div className="guest-stepper-row"><div><label className="field-label" htmlFor="guest-count">כמה מכם מגיעים?</label><p id="guest-help">כולל אתכם, כמובן</p></div><div className="guest-stepper"><button type="button" aria-label="הפחתת משתתף" onClick={() => adjustCount(-1)} disabled={currentCount === 1}><Icon name="minus" /></button><input id="guest-count" ref={countRef} name="guestCount" type="number" inputMode="numeric" min={1} step={1} value={guestCount} onChange={event => { setGuestCount(event.target.value); setErrors(previous => ({ ...previous, guestCount: undefined })); }} aria-invalid={Boolean(errors.guestCount)} aria-describedby={errors.guestCount ? "guest-help guest-error" : "guest-help"} required /><button type="button" aria-label="הוספת משתתף" onClick={() => adjustCount(1)}><Icon name="plus" /></button></div></div>{errors.guestCount && <p className="field-error" id="guest-error">{errors.guestCount}</p>}</div>}
+      {attendance === "yes" && <div className="guest-field"><div className="guest-stepper-row"><div><label className="field-label" htmlFor="guest-count">כמה מכם מגיעים?</label><p id="guest-help">כולל אתכם, כמובן</p></div><div className="guest-stepper"><button type="button" aria-label="הפחתת משתתף" onClick={() => adjustCount(-1)} disabled={currentCount === 1}><Icon name="minus" /></button><input id="guest-count" ref={countRef} name="guestCount" type="number" inputMode="numeric" min={1} max={guestLimit} step={1} value={guestCount} onChange={event => { setGuestCount(event.target.value); setErrors(previous => ({ ...previous, guestCount: undefined })); }} aria-invalid={Boolean(errors.guestCount)} aria-describedby={errors.guestCount ? "guest-help guest-error" : "guest-help"} required /><button type="button" aria-label="הוספת משתתף" disabled={currentCount >= guestLimit} onClick={() => adjustCount(1)}><Icon name="plus" /></button></div></div>{errors.guestCount && <p className="field-error" id="guest-error">{errors.guestCount}</p>}</div>}
 
       <div className="form-field"><label className="field-label" htmlFor="guest-message">משהו שתרצו שנדע? <span className="optional-label">לא חובה</span></label><textarea id="guest-message" name="message" rows={3} maxLength={500} value={message} onChange={event => setMessage(event.target.value)} placeholder="רגישות למזון, ברכה קטנה או כל דבר אחר..." /></div>
       <label className="honeypot" aria-hidden="true">אתר<input name="website" type="text" tabIndex={-1} autoComplete="off" /></label>
