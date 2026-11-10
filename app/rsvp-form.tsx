@@ -129,7 +129,7 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
       <label className="honeypot" aria-hidden="true">אתר<input name="website" type="text" tabIndex={-1} autoComplete="off" /></label>
     </fieldset>
 
-    {status === "error" && <div className="form-error" role="alert"><strong>האישור עדיין לא הושלם</strong><p>{errorMessage}</p><a href="mailto:organizers@example.com"><Icon name="message" /> יצירת קשר <Icon name="external" /></a></div>}
+    {status === "error" && <div className="form-error" role="alert"><strong>האישור עדיין לא הושלם</strong><p>{errorMessage}</p><a href={`mailto:${eventConfig.contactEmail}`}><Icon name="message" /> יצירת קשר <Icon name="external" /></a></div>}
     <button className="submit-button" type="submit" disabled={status === "sending" || unavailable}><span>{status === "sending" ? "שומרים את התשובה שלכם..." : attendance === "yes" ? "מאשרים ומתחילים להתרגש" : "שליחת התשובה שלנו"}</span><span className="button-icon">{status === "sending" ? <span className="spinner" /> : <Icon name="arrow" />}</span></button>
     <p className="privacy-note">הפרטים יישמרו אצל {eventHosts} לצורכי האירוע בלבד</p>
   </form>;

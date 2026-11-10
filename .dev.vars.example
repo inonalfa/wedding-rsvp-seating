@@ -1,5 +1,6 @@
 # Copy to .dev.vars for local development. Never commit real secrets.
 DEMO_MODE=1
+DEMO_AUTH=0
 ADMIN_PASSWORD=replace-with-a-long-random-password
 STAFF_PASSWORD=replace-with-an-independent-long-random-password
 INVITE_SHORT_TOKEN_SECRET=replace-with-32-random-bytes-in-base64url

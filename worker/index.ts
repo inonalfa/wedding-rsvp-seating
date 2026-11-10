@@ -16,6 +16,7 @@ interface Env {
   WHATSAPP_RSVP_SECRET?: string;
   SEATING_SYNC_SECRET?: string;
   DEMO_MODE?: string;
+  DEMO_AUTH?: string;
   AUTH_MODE?: string;
   ADMIN_PASSWORD?: string;
   STAFF_PASSWORD?: string;
@@ -59,9 +60,9 @@ const worker = {
       headers.delete('oai-authenticated-user-full-name');
       headers.delete('oai-authenticated-user-full-name-encoding');
       if (admin && !service) {
-        if (env.DEMO_MODE !== '1' && !(env.ADMIN_PASSWORD && await validBasicPassword(request, env.ADMIN_PASSWORD))) return authRequired('Wedding admin');
+        if ((env.DEMO_MODE !== '1' || env.DEMO_AUTH === '1') && !(env.ADMIN_PASSWORD && await validBasicPassword(request, env.ADMIN_PASSWORD))) return authRequired('Wedding admin');
         headers.set('oai-authenticated-user-email', env.ADMIN_EMAILS?.split(',')[0]?.trim() || 'demo@example.test');
-      } else if (staff && env.DEMO_MODE !== '1' && !(env.STAFF_PASSWORD && await validBasicPassword(request, env.STAFF_PASSWORD))) return authRequired('Wedding staff');
+      } else if (staff && (env.DEMO_MODE !== '1' || env.DEMO_AUTH === '1') && !(env.STAFF_PASSWORD && await validBasicPassword(request, env.STAFF_PASSWORD))) return authRequired('Wedding staff');
     }
     request = new Request(request, { headers });
     const config = {
