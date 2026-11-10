@@ -24,6 +24,15 @@ jobs:
           npx wrangler d1 migrations apply site-creator-d1 --local
       - run: npx playwright install --with-deps chromium --only-shell
       - run: npm run test:e2e
+      - name: Export fictional screenshots for release packaging
+        run: |
+          python3 - <<'PY'
+          import base64, pathlib, textwrap
+          for path in sorted(pathlib.Path('test-results').rglob('*.png')):
+              print('RELEASE_MEDIA_BEGIN ' + path.name)
+              print('\n'.join(textwrap.wrap(base64.b64encode(path.read_bytes()).decode(), 120)))
+              print('RELEASE_MEDIA_END')
+          PY
       - uses: actions/upload-artifact@v5
         if: always()
         with:
