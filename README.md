@@ -70,7 +70,7 @@ The read webhook returns `valueRanges` for tabs matching `eventConfig.sheetNames
 
 ## Deploy on Cloudflare
 
-1. Authenticate your own Cloudflare account with `npx wrangler login`. Create a separate D1 database: `npx wrangler d1 create wedding-rsvp-seating`. Put its ID and name in `wrangler.jsonc` and the D1 entry in `vite.config.ts`.
+1. Authenticate your own Cloudflare account with `npx wrangler login`. Create a separate D1 database: `npx wrangler d1 create wedding-rsvp-seating`. Put its ID and name in `wrangler.jsonc`; Vite uses that same configuration.
 2. Set deployed secrets with `npx wrangler secret put NAME`, including independent signing and Basic auth secrets. Configure `ADMIN_EMAILS`, `AUTH_MODE=basic`, `DEMO_MODE=0`, HTTPS and integration endpoints in your Worker environment. A public demo requires its own D1 database and separate write protection or reset policy.
 3. Apply migrations with `npx wrangler d1 migrations apply wedding-rsvp-seating --remote`.
 4. Run `npm run typecheck && npm run lint && npm test`, then `npx vinext deploy`. Verify the assigned Worker URL, protected routes and a test RSVP before distributing links.
