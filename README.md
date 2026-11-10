@@ -60,7 +60,7 @@ Before the first browser test, run `npx playwright install chromium`. CI install
 
 Edit the typed fictional example in `config/event.ts` for hosts, monogram, date and time, venue, contact, sheet names, invite ID prefixes and seating policy. `lib/event-config.ts` derives display dates and map links from it. The default reserved table is 2, with overflow allowed; change `seating.reservedTableNumber` and `allowReservedTableOverflow` for your event. Replace the fictional SVG artwork under `public/` if the demo design does not fit. The sample read source has two tabs of rows A:T. Review `lib/seating-model.ts` and `lib/demo-data.ts` before connecting real data. Changing an event's invite ID prefixes after links have been issued invalidates those links.
 
-For your own event, copy `.dev.vars.example` into `.dev.vars` in a separate checkout and fill every needed value. Set deployed secrets with Wrangler or your deployment secret manager. Never commit `.dev.vars`, a database, a real guest export or invitation links.
+For your own event, copy `.dev.vars.example` into `.dev.vars` in a separate checkout and fill every needed value. Both environment examples list every scalar Worker setting with a comment; `.dev.vars` is the file Wrangler uses locally. Blank secrets are placeholders: generate and fill them before using the affected feature. Missing admin/staff passwords fail closed. Apply migrations before starting the Worker. Set deployed secrets with Wrangler or your deployment secret manager. Never commit `.dev.vars`, a database, a real guest export or invitation links.
 
 | Variable | Purpose |
 | --- | --- |
@@ -68,7 +68,10 @@ For your own event, copy `.dev.vars.example` into `.dev.vars` in a separate chec
 | `DEMO_AUTH` | `1` keeps Basic authentication on for the fictional demo. `demo:setup` enables it. |
 | `ADMIN_PASSWORD`, `STAFF_PASSWORD` | Independent long secrets for standalone HTTP Basic auth. The username is `admin`; use HTTPS. |
 | `ADMIN_EMAILS` | First email is the authenticated admin identity; required for admin authorization in production. |
-| `INVITE_TOKEN_SECRET`, `INVITE_SHORT_TOKEN_SECRET` | Independent secrets for invitation links and seating tickets. |
+| `INVITE_TOKEN_SECRET`, `INVITE_SHORT_TOKEN_SECRET` | Independent 32-byte Base64URL secrets for invitation links and seating tickets. |
+| `INVITE_TOKEN_TTL_SECONDS` | New v3 invite lifetime, default 7776000 seconds (90 days), maximum 31536000. |
+| `INVITE_TOKENS_EXPIRE_AT` | Optional ISO UTC deadline that closes all invitation formats; set it for your event. |
+| `SEATING_TOKEN_EPOCH` | Change this value to revoke outstanding seating cards. |
 | `SEATING_SHEETS_WEBHOOK_URL` | POST endpoint returning `{ "valueRanges": [{ "range": "'מוזמנים דנה'!A1:T4", "values": [...] }, ...] }`. |
 | `MAKE_WEBHOOK_URL` | POST endpoint receiving RSVP, opening and seating updates. |
 | `SEATING_SYNC_SECRET`, `WHATSAPP_RSVP_SECRET` | Bearer secrets for service endpoints. |
@@ -76,9 +79,11 @@ For your own event, copy `.dev.vars.example` into `.dev.vars` in a separate chec
 
 Generate each secret independently. Invitation signing/encryption secrets must be 32 random bytes encoded as Base64URL, for example `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. Do not reuse demo credentials for your event.
 
+`DB` is the D1 binding declared in `wrangler.jsonc`. `ASSETS` (adapter-managed static assets) and `IMAGES` (optional image optimization) are Worker bindings, not scalar variables in `.dev.vars`. Keep deployment secrets outside committed Wrangler configuration.
+
 ### Sheets contract
 
-The read webhook returns `valueRanges` for tabs matching `eventConfig.sheetNames`, each with a header and rows A:T. Relevant columns: D phone, E invited count, G guest number, I stable invite ID, J RSVP status, K confirmed count, T table number. `MAKE_WEBHOOK_URL` receives JSON events with `schemaVersion` and `event`. For `seating.updated`, locate the row by `inviteId` and `sourceSheet`, write integer `tableNumber` to T or clear it when the value is `""`, and respond `{ "ok": true, "event": "seating.updated" }` only after a successful write. The application leases synchronization, tracks a snapshot and retries pending changes. Implement and secure the external scenario separately.
+The read webhook returns `valueRanges` for tabs matching `eventConfig.sheetNames`, each with a header and rows A:T. Relevant columns: D phone, E invited count, G guest number, I stable invite ID, J RSVP status, K confirmed count, T table number. `MAKE_WEBHOOK_URL` receives JSON events with `schemaVersion` and `event`. For `seating.updated`, locate the row by `inviteId` and `sourceSheet`, write integer `tableNumber` to T or clear it when the value is `""`, and respond `{ "ok": true, "event": "seating.updated" }` only after a successful write. The application leases synchronization, tracks a snapshot and retries pending changes. Implement and secure the external scenario separately. Inbound service calls require bearer auth plus fresh timestamp and nonce headers; migrate callers according to [the webhook protocol](docs/WEBHOOK_PROTOCOL.md) before deploying. Browser admin sync continues to use Basic auth.
 
 ## Deploy on Cloudflare
 
@@ -91,17 +96,17 @@ The checked-in migrations retain the original schema history. `.openai/hosting.j
 
 ## Security and privacy
 
-The Worker uses request-local D1 bindings and configuration so concurrent requests do not mix secrets. Standalone mode strips client-supplied identity headers and protects admin and table-finder routes. Demo mode contains only fictional records. Staff search returns names, tables and signed seating tickets, so restrict staff credentials. D1 rate limiting protects public RSVP and invitation endpoints; add edge controls and monitoring for a real deployment. Set a retention policy for personal information, rotate credentials after the event and use separate staging and production databases. HTTP Basic credentials may remain cached in a browser session.
+The Worker uses request-local D1 bindings and configuration so concurrent requests do not mix secrets. Standalone mode strips client-supplied identity headers and protects admin and table-finder routes. Demo mode contains only fictional records. Staff search returns names, tables and signed seating tickets, so restrict staff credentials. D1 rate limiting protects public RSVP and invitation endpoints; add edge controls and monitoring for a real deployment. Set a retention policy and follow the [guest-data deletion procedure](docs/DATA_RETENTION.md), rotate credentials after the event and use separate staging and production databases. HTTP Basic credentials may remain cached in a browser session.
 
 See [SECURITY.md](SECURITY.md), [release verification](docs/RELEASE_VERIFICATION.md) and [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed; font files in `public/fonts/` retain their SIL OFL notices.
 
 ## Known limitations
 
-The general RSVP form accepts submissions without an invitation link. Existing invitation tokens have no expiry or individual revocation, and external Make/Sheets scenarios are not bundled. HTTP Basic authentication and D1 rate limits need additional operational controls for a real event. See [SECURITY.md](SECURITY.md) for the complete limitations. No public live demo is currently deployed.
+The general RSVP form accepts submissions without an invitation link. New invitations expire; legacy links require an event-wide deadline or key rotation to close them. Individual invite revocation and seating-card epoch revocation are documented in [token lifecycle](docs/TOKEN_LIFECYCLE.md). External Make/Sheets scenarios are not bundled. HTTP Basic authentication and D1 rate limits need additional operational controls for a real event. See [SECURITY.md](SECURITY.md) for the complete limitations. No public live demo is currently deployed.
 
 ## Roadmap
 
-- Expiring invitation tokens, individual revocation and a compatibility migration.
+- A UI for token revocation and migration away from legacy invitation formats.
 - Stronger admin identity, a read-only or periodically reset hosted demo.
 - Signed integration payloads, retention jobs and edge abuse monitoring.
 - Further separation of the larger admin planners as their workflows evolve.
