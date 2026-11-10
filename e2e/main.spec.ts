@@ -61,7 +61,8 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
     const searchResponse = await searchResponsePromise;
     expect(searchResponse.status(), await searchResponse.text()).toBe(200);
     await expect(staffPage.getByText('מיה ברק')).toBeVisible();
-    await expect(staffPage.getByText(/שולחן 1/).first()).toBeVisible();
+    const guestCard = staffPage.getByRole('group', { name: /מיה ברק/ });
+    await expect(guestCard.locator('.finder-number strong')).toHaveText('1');
     await capture(staffPage, '04-search');
 
     await adminPage.goto('/admin/seating/sketch');
