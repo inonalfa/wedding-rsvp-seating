@@ -2,6 +2,7 @@
 
 import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
+import { eventConfig, eventDate } from "@/lib/event-config";
 
 type RsvpResponse = {
   id: number;
@@ -303,7 +304,7 @@ export default function AdminDashboard({
     <main className="admin-shell">
       <header className="admin-topbar">
         <div>
-          <Link className="admin-monogram" href="/" aria-label="חזרה לאתר">D <i>&amp;</i> Y</Link>
+          <Link className="admin-monogram" href="/" aria-label="חזרה לאתר">{eventConfig.monogram[0]} <i>&amp;</i> {eventConfig.monogram[1]}</Link>
           <span className="admin-divider" />
           <span>ניהול אישורי הגעה</span>
         </div>
@@ -317,7 +318,7 @@ export default function AdminDashboard({
 
       <section className="admin-hero">
         <div>
-          <p className="admin-kicker">10.06.2027</p>
+          <p className="admin-kicker">{eventDate}</p>
           <h1>מרכז השליטה של החתונה</h1>
           <p>יוצרים קישורים אישיים, עוקבים אחרי פתיחות ורואים את כל אישורי ההגעה במקום אחד.</p>
         </div>
@@ -344,9 +345,8 @@ export default function AdminDashboard({
             </label>
             <label className="admin-field">
               <span>לשונית בגיליון</span>
-              <select name="sourceSheet" defaultValue="מוזמנים דנה" required>
-                <option>מוזמנים דנה</option>
-                <option>מוזמנים יואב</option>
+              <select name="sourceSheet" defaultValue={eventConfig.sheetNames[0]} required>
+                {eventConfig.sheetNames.map(name => <option key={name}>{name}</option>)}
               </select>
             </label>
             <button className="admin-create-button" type="submit" disabled={createStatus === "sending"}>

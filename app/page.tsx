@@ -1,5 +1,5 @@
 "use client";
-import { eventConfig, eventDateSpaced, eventMonth, eventWeekday, eventMapUrl } from "@/lib/event-config";
+import { eventConfig, eventDate, eventDateSpaced, eventHosts, eventMonth, eventWeekday, eventMapUrl } from "@/lib/event-config";
 
 import Image from "next/image";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
@@ -54,12 +54,12 @@ function InvitationCard() {
   return <>
     <figure className="invitation-card" data-reveal>
       <button ref={trigger} className="invitation-button" type="button" onClick={open} aria-label="פתיחת ההזמנה בגודל מלא">
-        <Image src="/demo-invitation.svg" alt="ההזמנה לחתונה של דנה ויואב, 10.06.2027" width={1024} height={1536} unoptimized sizes="(max-width: 700px) 78vw, 360px" />
+        <Image src="/demo-invitation.svg" alt={`ההזמנה לחתונה של ${eventHosts}, ${eventDate}`} width={1024} height={1536} unoptimized sizes="(max-width: 700px) 78vw, 360px" />
         <span className="invitation-zoom">מבט מקרוב <Icon name="external" /></span>
       </button>
       <figcaption><span className="fine-line" />ההזמנה שלכם לערב שלנו<span className="fine-line" /></figcaption>
     </figure>
-    <dialog className="invitation-dialog" ref={dialog} onClose={restore} onClick={event => { if (event.target === event.currentTarget) close(); }} aria-label="הזמנת החתונה בגודל מלא"><button type="button" className="dialog-close" onClick={close} aria-label="סגירת ההזמנה"><Icon name="close" /></button><Image src="/demo-invitation.svg" alt="הזמנת החתונה המלאה של דנה ויואב" width={1024} height={1536} unoptimized loading="lazy" /></dialog>
+    <dialog className="invitation-dialog" ref={dialog} onClose={restore} onClick={event => { if (event.target === event.currentTarget) close(); }} aria-label="הזמנת החתונה בגודל מלא"><button type="button" className="dialog-close" onClick={close} aria-label="סגירת ההזמנה"><Icon name="close" /></button><Image src="/demo-invitation.svg" alt={`הזמנת החתונה המלאה של ${eventHosts}`} width={1024} height={1536} unoptimized loading="lazy" /></dialog>
   </>;
 }
 
@@ -67,7 +67,7 @@ function VenueMap() {
   const [loaded, setLoaded] = useState(false);
   return <div className={`venue-map ${loaded ? "is-loaded" : ""}`}>
     {!loaded && <div className="map-loading" aria-hidden="true"><Icon name="pin" /><span>{eventConfig.venue} · {eventConfig.address}</span></div>}
-    <iframe title="מפת הגעה אל גן האירועים" src={eventMapUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" onLoad={() => setLoaded(true)} allowFullScreen />
+    <iframe title={`מפת הגעה אל ${eventConfig.venue}`} src={eventMapUrl} loading="lazy" referrerPolicy="no-referrer-when-downgrade" onLoad={() => setLoaded(true)} allowFullScreen />
   </div>;
 }
 
@@ -161,7 +161,7 @@ export default function Home() {
     <a className="skip-link" href="#rsvp-form">דילוג לטופס אישור ההגעה</a>
     <OpeningMoment />
     <header className="floating-nav" ref={nav}>
-      <a className="brand-link" href="#top" aria-label="דנה ויואב, חזרה לראש העמוד"><Monogram /></a>
+      <a className="brand-link" href="#top" aria-label={`${eventHosts}, חזרה לראש העמוד`}><Monogram /></a>
       <nav className="nav-links" aria-label="ניווט בהזמנה"><a href="#celebrate">הערב שלנו</a><a href="#directions">איך מגיעים</a></nav>
       <a className="nav-cta" href="#rsvp">{saved ? "עדכון האישור" : "אישור הגעה"}<Icon name="external" /></a>
     </header>
@@ -170,9 +170,9 @@ export default function Home() {
       <div className="hero-layout">
         <div className="hero-content">
           <p className="hero-kicker"><span />WE’RE GETTING MARRIED<span /></p>
-          <h1 id="wedding-title" className="hero-names" aria-label="דנה ויואב מתחתנים"><span>דנה</span><i aria-hidden="true">&amp;</i><span>יואב</span></h1>
+          <h1 id="wedding-title" className="hero-names" aria-label={`${eventHosts} מתחתנים`}><span>{eventConfig.hosts[0]}</span><i aria-hidden="true">&amp;</i><span>{eventConfig.hosts[1]}</span></h1>
           <HeartHome />
-          <p className="hero-date"><time dateTime="2027-06-10">10.06.2027</time><span />יום חמישי</p>
+          <p className="hero-date"><time dateTime={eventConfig.date}>{eventDate}</time><span />{eventWeekday}</p>
           <p className="personal-greeting" aria-live="polite">{invite ? <><strong>{invite.firstName},</strong> הערב שלנו לא יהיה אותו דבר בלעדיכם.</> : "נשמח שתהיו חלק מהערב שלנו."}</p>
           <a className="hero-button" href="#rsvp" ref={heroButton}><span>מאשרים ומתחילים להתרגש</span><span className="button-icon"><Icon name="arrow" /></span></a>
           <p className="hero-venue">{eventConfig.venue} · {eventConfig.address} · קבלת פנים ב-19:30</p>
@@ -214,13 +214,13 @@ export default function Home() {
         <div className="rsvp-heading"><span className="editorial-index" aria-hidden="true">02 / RÉPONDEZ S’IL VOUS PLAÎT</span><p className="eyebrow">רק עוד פרט קטן</p><h2 id="rsvp-title">{invite && <span className="rsvp-personal-name">{invite.firstName},</span>} נתראה ברחבה?</h2><p>מלאו את הפרטים ועדכנו אותנו מי מגיע.</p></div>
         <RSVPForm invite={invite} inviteStatus={inviteStatus} retryInvite={() => setInviteAttempt(value => value + 1)} onSaved={saveComplete} />
       </div>
-      <div className="rsvp-art"><div className="rsvp-art-topline"><span>WITH LOVE</span><Monogram /></div><div className="rsvp-art-image" data-reveal><Image src="/demo-couple.svg" alt="איור הזוג בריקוד החתונה, אהבה שהופכת לבית, דנה ויואב" width={1350} height={900} unoptimized sizes="(max-width: 900px) 100vw, 45vw" /></div><p className="rsvp-art-caption">על הרחבה, ובכל מה שיבוא אחריה.</p><span className="rsvp-art-date" dir="ltr">{eventDateSpaced}</span></div>
+      <div className="rsvp-art"><div className="rsvp-art-topline"><span>WITH LOVE</span><Monogram /></div><div className="rsvp-art-image" data-reveal><Image src="/demo-couple.svg" alt={`איור הזוג בריקוד החתונה, ${eventHosts}`} width={1350} height={900} unoptimized sizes="(max-width: 900px) 100vw, 45vw" /></div><p className="rsvp-art-caption">על הרחבה, ובכל מה שיבוא אחריה.</p><span className="rsvp-art-date" dir="ltr">{eventDateSpaced}</span></div>
     </section>
 
     <footer className="wedding-footer">
       <div className="footer-message" data-reveal><span className="editorial-index" aria-hidden="true">OUR FOREVER STARTS HERE</span><h2>כל מה שחסר,<br /><em>זה אתם.</em></h2><p>מחכים לחגוג איתכם</p><Monogram className="footer-monogram" /><span className="footer-date" dir="ltr">{eventDateSpaced}</span></div>
-      <section className="venue-section" id="directions" aria-labelledby="venue-title"><div className="venue-copy"><div><p className="eyebrow">הדרך אל הרחבה</p><h2 id="venue-title">נפגשים בגן האירועים.</h2><address>{eventConfig.address}</address></div><div className="venue-actions"><a className="waze-button" href={wazeUrl} target="_blank" rel="noreferrer"><Icon name="pin" /><span>ניווט עם Waze</span><Icon name="external" /></a><a className="venue-calendar" href="/api/calendar"><Icon name="calendar" /> שמירת התאריך ביומן</a></div></div><VenueMap /></section>
+      <section className="venue-section" id="directions" aria-labelledby="venue-title"><div className="venue-copy"><div><p className="eyebrow">הדרך אל הרחבה</p><h2 id="venue-title">נפגשים ב{eventConfig.venue}.</h2><address>{eventConfig.address}</address></div><div className="venue-actions"><a className="waze-button" href={wazeUrl} target="_blank" rel="noreferrer"><Icon name="pin" /><span>ניווט עם Waze</span><Icon name="external" /></a><a className="venue-calendar" href="/api/calendar"><Icon name="calendar" /> שמירת התאריך ביומן</a></div></div><VenueMap /></section>
     </footer>
-    <div className={`mobile-rsvp-dock ${dockVisible ? "is-visible" : ""}`} inert={!dockVisible} aria-hidden={!dockVisible}><div><span>דנה &amp; יואב</span><time dateTime="2027-06-10" dir="ltr">10.06.2027</time></div><a href="#rsvp">{saved ? "עדכון האישור" : "אישור הגעה"}<Icon name="arrow" /></a></div>
+    <div className={`mobile-rsvp-dock ${dockVisible ? "is-visible" : ""}`} inert={!dockVisible} aria-hidden={!dockVisible}><div><span>{eventConfig.hosts[0]} &amp; {eventConfig.hosts[1]}</span><time dateTime={eventConfig.date} dir="ltr">{eventDate}</time></div><a href="#rsvp">{saved ? "עדכון האישור" : "אישור הגעה"}<Icon name="arrow" /></a></div>
   </main>;
 }

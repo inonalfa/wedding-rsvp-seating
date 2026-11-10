@@ -1,13 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import { eventDate, eventHosts } from '@/lib/event-config';
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "דנה ויואב - אישורי הגעה",
-  description: "דנה ויואב מתחתנים ב-10.06.2027. נשמח שתאשרו הגעה לחגיגה שלנו.",
+  title: `${eventHosts} - אישורי הגעה`,
+  description: `${eventHosts} מתחתנים ב-${eventDate}. נשמח שתאשרו הגעה לחגיגה שלנו.`,
   icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
   openGraph: {
-    title: "דנה ויואב מתחתנים",
-    description: "10.06.2027 - מאשרים הגעה ומתחילים להתרגש",
+    title: `${eventHosts} מתחתנים`,
+    description: `${eventDate} - מאשרים הגעה ומתחילים להתרגש`,
     images: ["/demo-hero.svg"],
     locale: "he_IL",
     type: "website",

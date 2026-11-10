@@ -1,4 +1,5 @@
 import type { SVGProps } from "react";
+import { eventConfig } from '@/lib/event-config';
 
 type IconName = "arrow" | "down" | "external" | "heart" | "calendar" | "pin" | "check" | "close" | "plus" | "minus" | "message" | "refresh";
 
@@ -22,5 +23,5 @@ export function Icon({ name, ...props }: SVGProps<SVGSVGElement> & { name: IconN
 }
 
 export function Monogram({ className = "" }: { className?: string }) {
-  return <span className={`monogram ${className}`} dir="ltr" aria-hidden="true"><span>D</span><i>&amp;</i><span>Y</span></span>;
+  return <span className={`monogram ${className}`} dir="ltr" aria-hidden="true"><span>{eventConfig.monogram[0]}</span><i>&amp;</i><span>{eventConfig.monogram[1]}</span></span>;
 }

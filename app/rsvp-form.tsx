@@ -1,5 +1,5 @@
 "use client";
-import { eventWazeUrl } from "@/lib/event-config";
+import { eventConfig, eventHosts, eventWazeUrl } from "@/lib/event-config";
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { rsvpPayload, validateRsvp, type Attendance, type RsvpErrors } from "@/lib/rsvp-form";
@@ -110,7 +110,7 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
 
   return <form className="rsvp-form" onSubmit={handleSubmit} noValidate aria-busy={status === "sending" || inviteStatus === "loading"}>
     {inviteStatus === "loading" && <p className="invite-loading" role="status"><span className="spinner" aria-hidden="true" /> רגע, פותחים את ההזמנה שלכם...</p>}
-    {inviteStatus === "error" && <div className="form-error" role="alert"><strong>ההזמנה האישית לא נטענה</strong><p>אפשר לנסות שוב. אם זה לא מסתדר, אנחנו כאן בוואטסאפ.</p><div className="error-actions"><button type="button" onClick={retryInvite}><Icon name="refresh" /> ניסיון נוסף</button><a href="mailto:organizers@example.com"><Icon name="message" /> יצירת קשר עם המארגנים</a></div></div>}
+    {inviteStatus === "error" && <div className="form-error" role="alert"><strong>ההזמנה האישית לא נטענה</strong><p>אפשר לנסות שוב. אם זה לא מסתדר, אנחנו כאן בוואטסאפ.</p><div className="error-actions"><button type="button" onClick={retryInvite}><Icon name="refresh" /> ניסיון נוסף</button><a href={`mailto:${eventConfig.contactEmail}`}><Icon name="message" /> יצירת קשר עם המארגנים</a></div></div>}
     <fieldset className="form-fields" disabled={status === "sending" || unavailable}>
       <legend className="sr-only">פרטי אישור ההגעה</legend>
       <fieldset className="attendance-field">
@@ -131,6 +131,6 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
 
     {status === "error" && <div className="form-error" role="alert"><strong>האישור עדיין לא הושלם</strong><p>{errorMessage}</p><a href="mailto:organizers@example.com"><Icon name="message" /> יצירת קשר <Icon name="external" /></a></div>}
     <button className="submit-button" type="submit" disabled={status === "sending" || unavailable}><span>{status === "sending" ? "שומרים את התשובה שלכם..." : attendance === "yes" ? "מאשרים ומתחילים להתרגש" : "שליחת התשובה שלנו"}</span><span className="button-icon">{status === "sending" ? <span className="spinner" /> : <Icon name="arrow" />}</span></button>
-    <p className="privacy-note">הפרטים יישמרו אצל דנה ויואב לצורכי האירוע בלבד</p>
+    <p className="privacy-note">הפרטים יישמרו אצל {eventHosts} לצורכי האירוע בלבד</p>
   </form>;
 }
