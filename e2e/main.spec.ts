@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 
@@ -11,10 +11,12 @@ function demoPassword(name: string) {
 const adminPassword = demoPassword('ADMIN_PASSWORD');
 const staffPassword = demoPassword('STAFF_PASSWORD');
 
-test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', async ({ browser, baseURL }) => {
-  const admin = await browser.newContext({ baseURL, httpCredentials: { username: 'admin', password: adminPassword } });
-  const guest = await browser.newContext({ baseURL });
-  const staff = await browser.newContext({ baseURL, httpCredentials: { username: 'admin', password: staffPassword } });
+test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', async ({ browser, baseURL }, testInfo) => {
+  const options = { baseURL, viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' as const };
+  const admin = await browser.newContext({ ...options, httpCredentials: { username: 'admin', password: adminPassword } });
+  const guest = await browser.newContext(options);
+  const staff = await browser.newContext({ ...options, httpCredentials: { username: 'admin', password: staffPassword } });
+  const capture = (page: Page, name: string) => page.screenshot({ path: testInfo.outputPath(`${name}.png`), animations: 'disabled' });
   try {
     const adminPage = await admin.newPage();
     await adminPage.goto('/admin');
@@ -30,9 +32,11 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
     const guestPage = await guest.newPage();
     await guestPage.goto(shortLink);
     await expect(guestPage.locator('#guest-name')).toHaveValue('דנה בדיקה');
+    await capture(guestPage, '01-invitation');
     await guestPage.locator('#guest-count').fill('2');
     await guestPage.getByRole('button', { name: 'מאשרים ומתחילים להתרגש' }).click();
     await expect(guestPage.getByRole('heading', { name: 'יש! נתראה ברחבה.' })).toBeVisible();
+    await capture(guestPage, '02-rsvp');
 
     // Keep repeated local runs deterministic without touching any real data.
     const seatingResponse = await admin.request.get('/api/admin/seating');
@@ -46,13 +50,16 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
     await adminPage.getByRole('searchbox', { name: 'חיפוש מוזמנים' }).fill('מיה');
     await adminPage.getByRole('button', { name: /שיבוץ מיה ברק לשולחן 1/ }).click();
     await adminPage.getByRole('button', { name: 'שמירה עכשיו' }).click();
-    await expect(adminPage.getByText(/סידור ההושבה נשמר/)).toBeVisible();
+    await expect(adminPage.getByText(/סידור ההושבה נשמר/).first()).toBeVisible();
+    await adminPage.getByRole('searchbox', { name: 'חיפוש מוזמנים' }).fill('');
+    await capture(adminPage, '03-seating');
 
     const staffPage = await staff.newPage();
     await staffPage.goto('/find-table');
     await staffPage.getByRole('searchbox').fill('מיה');
     await expect(staffPage.getByText('מיה ברק')).toBeVisible();
     await expect(staffPage.getByText(/שולחן 1/).first()).toBeVisible();
+    await capture(staffPage, '04-search');
 
     await adminPage.goto('/admin/seating/sketch');
     await expect(adminPage.getByRole('heading', { name: 'סקיצת האולם' })).toBeVisible();
@@ -61,6 +68,7 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
     const download = await downloadPromise;
     const bytes = await readFile(await download.path());
     expect(bytes.subarray(0, 5).toString()).toBe('%PDF-');
+    await capture(adminPage, '05-sketch');
   } finally {
     await Promise.all([admin.close(), guest.close(), staff.close()]);
   }
