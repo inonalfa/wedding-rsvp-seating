@@ -1,8 +1,9 @@
-/** Cloudflare Worker entry point for the vinext-starter template. */
+/** Cloudflare Worker entry point for the standalone RSVP application. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import type { D1Database } from "@cloudflare/workers-types";
 import { requestContext } from "../lib/request-context";
+import { limitPublicRequest } from "../lib/public-rate-limit";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -46,6 +47,12 @@ const worker = {
     const admin = path === '/admin' || path.startsWith('/admin/') || path === '/api/admin' || path.startsWith('/api/admin/');
     const staff = path === '/find-table' || path.startsWith('/find-table/') || path === '/api/find-table' || path.startsWith('/api/find-table/');
     const service = path === '/api/admin/seating/sync';
+    const mutation = !['GET', 'HEAD', 'OPTIONS'].includes(request.method);
+    // Browsers attach Origin or Fetch Metadata to unsafe requests. Keep the
+    // no-Origin path for authenticated service clients without browser metadata.
+    if ((admin || staff) && mutation && invalidBrowserOrigin(request)) {
+      return Response.json({ error: 'Cross-origin request denied' }, { status: 403 });
+    }
     const headers = new Headers(request.headers);
     if (env.AUTH_MODE !== 'sites') {
       headers.delete('oai-authenticated-user-email');
@@ -69,6 +76,13 @@ const worker = {
       authMode: env.AUTH_MODE,
     };
     return requestContext.run({ db: env.DB, config }, async () => {
+    if (path === '/api/rsvp' && request.method === 'POST') {
+      const denied = await limitPublicRequest(request, path, 20);
+      if (denied) return denied;
+    } else if ((path === '/api/invite/open' && request.method === 'POST') || (path === '/api/invite' && request.method === 'GET')) {
+      const denied = await limitPublicRequest(request, path, 60);
+      if (denied) return denied;
+    }
     if (url.pathname === "/_vinext/image") {
       const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
       return handleImageOptimization(request, {
@@ -89,6 +103,13 @@ export default worker;
 
 function authRequired(realm: string): Response {
   return new Response('Authentication required', { status: 401, headers: { 'WWW-Authenticate': `Basic realm="${realm}", charset="UTF-8"`, 'Cache-Control': 'no-store' } });
+}
+
+function invalidBrowserOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+  if (origin && origin !== new URL(request.url).origin) return true;
+  const site = request.headers.get('sec-fetch-site');
+  return site === 'cross-site' || (request.headers.has('sec-fetch-mode') && !origin && site !== 'same-origin');
 }
 async function validBasicPassword(request: Request, expected: string): Promise<boolean> {
   const authorization = request.headers.get('authorization') || '';

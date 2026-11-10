@@ -148,3 +148,9 @@ export const rsvpInviteResolutions = sqliteTable('rsvp_invite_resolutions', {
   canonicalId: text('canonical_id'),
   reconciliationId: text('reconciliation_id').notNull(),
 });
+
+export const publicRateLimits = sqliteTable('public_rate_limits', {
+  key: text('key').primaryKey(),
+  windowStart: integer('window_start').notNull(),
+  hits: integer('hits').notNull(),
+});

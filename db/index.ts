@@ -80,6 +80,11 @@ export async function ensureRsvpSchema() {
         updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
       )`),
       db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS generated_invites_invite_id_unique ON generated_invites (invite_id)"),
+      db.prepare(`CREATE TABLE IF NOT EXISTS public_rate_limits (
+        key text PRIMARY KEY NOT NULL,
+        window_start integer NOT NULL,
+        hits integer NOT NULL
+      )`),
     ])
     .then(() => undefined)
     .catch((error) => {

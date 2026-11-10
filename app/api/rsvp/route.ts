@@ -26,7 +26,12 @@ async function resolveInvite(value: unknown): Promise<InviteDetails | null> {
 
 export async function POST(request: Request) {
   try {
-    const payload = (await request.json()) as RSVPRequest;
+    const text = await request.text();
+    if (text.length > 4_000) return Response.json({ error: "הבקשה גדולה מדי" }, { status: 413 });
+    let payload: RSVPRequest;
+    try { payload = JSON.parse(text) as RSVPRequest; }
+    catch { return Response.json({ error: "בקשה לא תקינה" }, { status: 400 }); }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) return Response.json({ error: "בקשה לא תקינה" }, { status: 400 });
     if (typeof payload.website === "string" && payload.website.trim()) {
       return Response.json({ ok: true }, { status: 201 });
     }
@@ -54,7 +59,7 @@ export async function POST(request: Request) {
     }
     if (
       attendance === "yes" &&
-      (!Number.isSafeInteger(guestCount) || guestCount < 1)
+      (!Number.isSafeInteger(guestCount) || guestCount < 1 || guestCount > 1_000)
     ) {
       return Response.json({ error: "מספר המשתתפים אינו תקין" }, { status: 400 });
     }
@@ -69,7 +74,7 @@ export async function POST(request: Request) {
       fullName,
       attendance,
       guestCount,
-      maxGuests: 0,
+      maxGuests: invite?.maxGuests ?? 0,
       message,
       sourceSheet: invite?.sourceSheet ?? null,
       sourceRow: invite?.sourceRow ?? null,

@@ -16,3 +16,10 @@ test('missing production passwords fail closed',async()=>{
  assert.equal((await worker.fetch(new Request('https://example.test/admin'),{...env,ADMIN_PASSWORD:undefined},ctx)).status,401);
  assert.equal((await worker.fetch(new Request('https://example.test/find-table'),{...env,STAFF_PASSWORD:undefined},ctx)).status,401);
 });
+test('browser cross-origin mutations are rejected before admin handlers run',async()=>{
+ const password=`Basic ${btoa('admin:long-admin-secret')}`;
+ for(const headers of [{origin:'https://attacker.example',authorization:password},{'sec-fetch-site':'cross-site',authorization:password},{'sec-fetch-mode':'cors',authorization:password}]){
+  const response=await worker.fetch(new Request('https://example.test/api/admin/calls',{method:'POST',headers,body:'{}'}),env,ctx);
+  assert.equal(response.status,403);
+ }
+});

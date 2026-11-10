@@ -15,7 +15,12 @@ function cleanToken(value: unknown) {
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as InviteOpenRequest;
+    const text = await request.text();
+    if (text.length > 4_000) return Response.json({ error: "הבקשה גדולה מדי" }, { status: 413 });
+    let body: InviteOpenRequest;
+    try { body = JSON.parse(text) as InviteOpenRequest; }
+    catch { return Response.json({ error: "בקשה לא תקינה" }, { status: 400 }); }
+    if (!body || typeof body !== 'object' || Array.isArray(body)) return Response.json({ error: "בקשה לא תקינה" }, { status: 400 });
     const token = cleanToken(body.inviteToken);
     if (!token) return Response.json({ error: "קישור ההזמנה אינו תקין" }, { status: 400 });
 
