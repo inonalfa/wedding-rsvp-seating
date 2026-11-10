@@ -12,6 +12,18 @@ Built with AI-assisted development and automated tests. This is a self-hosted ex
 - Optional Google Sheets sync through external webhook endpoints. Column T is the numeric table number.
 - Six fictional guests and three tables in local demo mode.
 
+## Demo tour
+
+This short tour uses screenshots from the automated fictional demo, not a live deployment.
+
+![Fictional demo tour](docs/media/demo-tour.gif)
+
+| Invitation | Seating planner |
+| --- | --- |
+| ![Fictional invitation](docs/media/01-invitation.png) | ![Fictional seating planner](docs/media/03-seating.png) |
+| Hebrew table search | Room sketch and PDF export |
+| ![Hebrew table search](docs/media/04-search.png) | ![Room sketch](docs/media/05-sketch.png) |
+
 ## Architecture
 
 ```mermaid
