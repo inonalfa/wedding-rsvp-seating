@@ -4,6 +4,8 @@ import { generatedInvites, rsvpResponses } from "@/db/schema";
 import { getWeddingRuntimeConfig } from "@/lib/runtime-config";
 import { decodeInviteToken } from "@/lib/invite-token";
 
+import { rsvpGuestLimit } from "@/lib/rsvp-form";
+
 type WhatsappRsvp = {
   inviteId?: unknown;
   attendance?: unknown;
@@ -91,7 +93,7 @@ export async function POST(request: Request) {
   const attendance = payload.attendance;
   const guestCount = attendance === "no" ? 0 : Number(payload.guestCount);
   if (!inviteId || inviteId.length > 160 || (attendance !== "yes" && attendance !== "no") ||
-      !Number.isSafeInteger(guestCount) || (attendance === "yes" && (guestCount < 1 || guestCount > 5))) {
+      !Number.isSafeInteger(guestCount) || (attendance === "yes" && (guestCount < 1 || guestCount > 1_000))) {
     return Response.json({ error: "Invalid RSVP" }, { status: 400 });
   }
   const validAttendance: "yes" | "no" = attendance;
@@ -103,6 +105,9 @@ export async function POST(request: Request) {
       .where(eq(generatedInvites.inviteId, inviteId)).limit(1);
     const invite = generatedInvite ?? await resolveLegacyInvite(payload, inviteId);
     if (!invite) return Response.json({ error: "Unknown invite" }, { status: 404 });
+
+    const limit = rsvpGuestLimit(invite.maxGuests);
+    if (attendance === "yes" && guestCount > limit) return Response.json({ error: `Guest count must be between 1 and ${limit}` }, { status: 400 });
 
     const phone = normalizePhone(payload.phone).slice(0, 20);
     const [existing] = await db.select().from(rsvpResponses)

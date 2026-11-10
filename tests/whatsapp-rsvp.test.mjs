@@ -18,7 +18,7 @@ function fixture(){
 }
 
 function token(row=123,name='אמיר'){
- const payload=Buffer.concat([Buffer.from([1,0,row>>8,row&255,1]),Buffer.from(name)]);
+ const payload=Buffer.concat([Buffer.from([1,0,row>>8,row&255,2]),Buffer.from(name)]);
  return Buffer.concat([payload,createHmac('sha256',Buffer.alloc(32,7)).update(payload).digest().subarray(0,8)]).toString('base64url');
 }
 function post(f,body,secret='test-webhook'){
@@ -28,6 +28,7 @@ const sheets=(signed=token(),id='dana-0123')=>[{range:"'מוזמנים דנה'!D
 test('legacy WhatsApp RSVP saves and syncs using a signed token even without generated_invites',async()=>{
  const f=fixture();await f.request('/api/calendar');const old=globalThis.fetch,sent=[];globalThis.fetch=async(u,o)=>{sent.push(JSON.parse(o.body));return new Response('Accepted');};
  try{
+  assert.equal((await post(f,{phone:'972500000006',attendance:'yes',guestCount:3,sheets:sheets()})).status,400);
   const r=await post(f,{phone:'972500000006',attendance:'yes',guestCount:'2',sheets:sheets()});assert.equal(r.status,200,await r.clone().text());assert.equal((await r.json()).synced,true);
   const saved=f.sql.prepare('SELECT * FROM rsvp_responses').get();assert.equal(saved.invite_id,'dana-0123');assert.equal(saved.guest_count,2);assert.equal(saved.source_row,2);assert.equal(sent.length,1);assert.equal(sent[0].lookupValue,'dana-0123');
   const no=await post(f,{phone:'0500000006',attendance:'no',guestCount:0,sheets:sheets()});assert.equal(no.status,200);assert.equal(f.sql.prepare('SELECT COUNT(*) n FROM rsvp_responses').get().n,1);assert.equal(f.sql.prepare('SELECT guest_count FROM rsvp_responses').get().guest_count,0);
