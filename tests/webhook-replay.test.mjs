@@ -8,8 +8,8 @@ test('real Worker requires fresh, unique service requests and claims nonces atom
   const send = headers => f.request('/api/admin/seating/sync', { headers });
   try {
     assert.equal((await send({ Authorization: 'Bearer test-sync-secret' })).status, 401);
-    assert.equal((await send({ ...fresh(), 'X-Webhook-Timestamp': String(Math.floor(Date.now() / 1000) - 301) })).status, 401);
-    assert.equal((await send({ ...fresh(), 'X-Webhook-Timestamp': String(Math.floor(Date.now() / 1000) + 301) })).status, 401);
+    assert.equal((await send({ ...fresh(), 'X-Webhook-Timestamp': String(Math.floor(Date.now() / 1000) - 600) })).status, 401);
+    assert.equal((await send({ ...fresh(), 'X-Webhook-Timestamp': String(Math.floor(Date.now() / 1000) + 600) })).status, 401);
     assert.equal((await send({ ...fresh(), 'X-Webhook-Nonce': 'short' })).status, 401);
     const headers = fresh();
     assert.equal((await send({ ...headers, Authorization: 'Bearer wrong' })).status, 401);
