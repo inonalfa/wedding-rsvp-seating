@@ -1,5 +1,5 @@
-import { eventWazeUrl } from "@/lib/event-config";
 "use client";
+import { eventWazeUrl } from "@/lib/event-config";
 
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { rsvpPayload, validateRsvp, type Attendance, type RsvpErrors } from "@/lib/rsvp-form";

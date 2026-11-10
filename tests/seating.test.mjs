@@ -65,7 +65,8 @@ test('compact numbering preserves table 2, IDs, capacities, guests and display o
  const plan={tables:[{id:'last',number:9,capacity:12,guests:['a']},{id:'family',number:2,capacity:24,guests:['b']},{id:'first',number:5,capacity:12,guests:[]}]};
  const result=compactTableNumbers(plan);
  assert.deepEqual(result.tables.map(t=>t.number),[3,2,1]);
- assert.deepEqual(result.tables.map(({number,...t})=>t),plan.tables.map(({number,...t})=>t));
+ const withoutNumber = table => Object.fromEntries(Object.entries(table).filter(([key]) => key !== 'number'));
+ assert.deepEqual(result.tables.map(withoutNumber),plan.tables.map(withoutNumber));
  assert.deepEqual(plan.tables.map(t=>t.number),[9,2,5]);
  assert.deepEqual(compactTableNumbers(result),result);
  assert.deepEqual(compactTableNumbers({tables:[]}),{tables:[]});

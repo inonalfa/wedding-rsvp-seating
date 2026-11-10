@@ -28,7 +28,7 @@ export function linkSketchTable(sketch: SeatingSketch, itemId: string, table: Sk
   return { ...sketch, items: sketch.items.map(i => i.id === itemId ? { ...i, seatingTableId: table.id, label: String(table.number), name: table.name ?? '' } : i) };
 }
 export function unlinkSketchTable(sketch: SeatingSketch, itemId: string): SeatingSketch {
-  return { ...sketch, items: sketch.items.map(i => { if (i.id !== itemId || !i.seatingTableId) return i; const { seatingTableId, ...item } = i; return item; }) };
+  return { ...sketch, items: sketch.items.map(i => { if (i.id !== itemId || !i.seatingTableId) return i; const item = { ...i }; delete item.seatingTableId; return item; }) };
 }
 export function syncSketchTableLabels(sketch: SeatingSketch, tables: SketchSeatingTable[]): SeatingSketch {
   const map = new Map(tables.map(table => [table.id, table])); let changed = false;

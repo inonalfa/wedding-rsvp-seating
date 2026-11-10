@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { compactTableNumbers, searchSeatingGuests, tableOccupancy, tableMajoritySide, tableAttendanceSummary, sortedTableGuests, type TableGuestSort, type Guest, type SeatingPlan, type SeatingTable } from '@/lib/seating-model';
 type Data = { guests: Guest[]; plan: SeatingPlan; revision: number; fetchedAt: string | null; updatedAt: string | null; warning: string | null };
@@ -23,24 +23,24 @@ export default function SeatingPlanner() {
   const guestRows = useRef(new Map<string,HTMLDivElement>());
   const draggedGuest = useRef<string | null>(null); const [dragging,setDragging] = useState<string | null>(null); const [dropTarget,setDropTarget] = useState<string | null>(null);
   const [deleteId,setDeleteId] = useState<string | null>(null); const lock = useRef(false); const editVersion = useRef(0); const [autoSavePaused,setAutoSavePaused] = useState(false);
-  async function load(refresh=false, replace=true) {
+  const load = useCallback(async (refresh=false, replace=true) => {
     setBusy(true); setError(''); setNotice('');
     try { const r = await fetch(`/api/admin/seating${refresh?'?refresh=1':''}`, {cache:'no-store'}); const d = await r.json(); if (!r.ok) throw new Error(d.error || 'הטעינה נכשלה');
       if (replace) {editVersion.current++;setPlan(d.plan);setData(d);setDirty(false);setConflict(false);setAutoSavePaused(false);} else setData(old=>old?{...old,guests:d.guests,fetchedAt:d.fetchedAt,warning:d.warning}:d);
       if(d.sheetSync?.error)setError(d.sheetSync.error);else setSheetPending(d.sheetSync?.pending!==0);
-      if (!selected && d.plan.tables.length) setSelected(d.plan.tables[0].id);
+      if (d.plan.tables.length) setSelected(current => current || d.plan.tables[0].id);
     } catch(e) {setError(e instanceof Error ? e.message:'הטעינה נכשלה');} finally {setBusy(false);}
-  }
-  useEffect(()=>{void load();},[]);
+  }, []);
+  useEffect(()=>{void load();},[load]);
   useEffect(()=>{if(!dirty)return; const h=(e:BeforeUnloadEvent)=>{e.preventDefault();e.returnValue='';};window.addEventListener('beforeunload',h);return()=>window.removeEventListener('beforeunload',h);},[dirty]);
   function change(next:SeatingPlan) {editVersion.current++;setPlan(next);setDirty(true);setNotice('');setError('');setAutoSavePaused(false);}
-  async function save() {
+  const save = useCallback(async () => {
     if (!data || lock.current || conflict) return; const savedVersion=editVersion.current; lock.current=true; setSaving(true);setError('');setNotice('');setAutoSavePaused(false);
     try {const r=await fetch('/api/admin/seating',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan,revision:data.revision})}); const d=await r.json();if(!r.ok){setConflict(!!d.conflict);throw new Error(d.error);}
       setSheetPending(!d.sheetSync?.error&&d.sheetSync?.pending!==0);setData(old=>old?{...old,plan,revision:d.revision,updatedAt:d.updatedAt}:old);const newerChanges=editVersion.current!==savedVersion;setDirty(newerChanges);setConflict(false);if(d.sheetSync?.error)setError('סידור ההושבה נשמר. '+d.sheetSync.error);else if(!newerChanges)setNotice(d.sheetSync?.pending===0?'סידור ההושבה נשמר ומספרי השולחנות סונכרנו לגיליונות':'סידור ההושבה נשמר. סנכרון הגיליונות בתהליך.');
     }catch(e){setAutoSavePaused(true);setError(e instanceof Error?e.message:'השמירה נכשלה');}finally{lock.current=false;setSaving(false);}
-  }
-  async function syncSheets(refresh=true){
+  }, [data, plan, conflict]);
+  const syncSheets = useCallback(async (refresh=true) => {
     if(busy||saving||dirty)return;setBusy(true);setSheetPending(false);setError('');setNotice('מסנכרן מספרי שולחנות...');
     try{let total=0;
       for(let i=0;i<100;i++){
@@ -53,13 +53,13 @@ export default function SeatingPlanner() {
       }
       throw new Error('הסנכרון טרם הסתיים. לחצו שוב להמשך.');
     }catch(e){setNotice('');setError(e instanceof Error?e.message:'הסנכרון נכשל');}finally{setBusy(false);}
-  }
-  useEffect(()=>{if(!sheetPending||busy||saving||dirty)return;const timer=setTimeout(()=>void syncSheets(false),1500);return()=>clearTimeout(timer);},[sheetPending,busy,saving,dirty]);
+  }, [busy, saving, dirty]);
+  useEffect(()=>{if(!sheetPending||busy||saving||dirty)return;const timer=setTimeout(()=>void syncSheets(false),1500);return()=>clearTimeout(timer);},[sheetPending,busy,saving,dirty,syncSheets]);
   useEffect(()=>{
     if(!dirty||!data||saving||busy||conflict||autoSavePaused)return;
     const timer=window.setTimeout(()=>{void save();},2500);
     return()=>window.clearTimeout(timer);
-  },[plan,dirty,data,saving,busy,conflict,autoSavePaused]);
+  },[dirty,data,saving,busy,conflict,autoSavePaused,save]);
   const guests=data?.guests??[]; const guestMap=new Map(guests.map(g=>[g.id,g]));
   const assigned=new Set(plan.tables.flatMap(t=>t.guests));
   const unseated=guests.filter(g=>!assigned.has(g.id));

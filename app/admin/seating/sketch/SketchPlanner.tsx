@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react';
 import Link from 'next/link';
 import type { Guest, SeatingPlan } from '@/lib/seating-model';
 import { createInitialSketch, fitItem, chairPositions, kindLabels, alignTablesToGrid, SKETCH_GRID, DEFAULT_TABLE_SIDE, DEFAULT_TABLE_ROTATION, isSketchTable, sketchItemLabel, moveSketchItems, resizeSketchTables, type SeatingSketch, type SketchItem, type SketchKind, linkSketchTable, unlinkSketchTable, syncSketchTableLabels, unlinkedSeatingTables, type SketchSeatingTable } from '@/lib/seating-sketch';
@@ -136,7 +136,7 @@ export default function SketchPlanner() {
     const current = sketchRef.current;
     apply({ ...current, items: current.items.map(i => i.id === id ? fitItem({ ...i, ...patch }, current) : i) }, history);
   }
-  async function save() {
+  const save = useCallback(async () => {
     if (!data || saveLock.current || conflict || gesture.current) return;
     saveLock.current = true; setSaving(true); setError('');
     const submitted = sketchRef.current; const submittedVersion = version.current;
@@ -150,11 +150,11 @@ export default function SketchPlanner() {
       setDirty(version.current !== submittedVersion); setPaused(false);
     } catch (e) { setPaused(true); setError(e instanceof Error ? e.message : 'השמירה נכשלה'); }
     finally { saveLock.current = false; setSaving(false); }
-  }
+  }, [data, conflict, seatingTables]);
   useEffect(() => {
     if (!dirty || !ready || saving || conflict || paused || interacting) return;
     const timer = window.setTimeout(() => { void save(); }, 2500); return () => window.clearTimeout(timer);
-  }, [sketch, dirty, ready, saving, conflict, paused, interacting, data]);
+  }, [sketch, dirty, ready, saving, conflict, paused, interacting, save]);
   function start(e: PointerEvent<HTMLDivElement | HTMLButtonElement>, item: SketchItem, mode: Gesture['mode']) {
     if (!ready || e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();

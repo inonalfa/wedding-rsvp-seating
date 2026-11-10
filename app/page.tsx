@@ -1,5 +1,5 @@
-import { eventConfig, eventDate, eventDateSpaced, eventMonth, eventWeekday, eventMapUrl, eventWazeUrl } from "@/lib/event-config";
 "use client";
+import { eventConfig, eventDateSpaced, eventMonth, eventWeekday, eventMapUrl } from "@/lib/event-config";
 
 import Image from "next/image";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
@@ -178,7 +178,7 @@ export default function Home() {
           <p className="hero-venue">{eventConfig.venue} · {eventConfig.address} · קבלת פנים ב-19:30</p>
         </div>
         <div className="hero-image-shell">
-          <div className="hero-image-motion" ref={heroImage}><img className="hero-image" src="/demo-hero.svg"  sizes="(max-width: 900px) 100vw, 52vw" width={2048} height={1243} alt="איור חגיגי לדוגמה" fetchPriority="high" decoding="async" /></div>
+          <div className="hero-image-motion" ref={heroImage}><Image className="hero-image" src="/demo-hero.svg" sizes="(max-width: 900px) 100vw, 52vw" width={2048} height={1243} alt="איור חגיגי לדוגמה" priority unoptimized /></div>
           <div className="hero-image-shade" />
           <div className="hero-image-caption"><span>THE NEXT CHAPTER</span><span>D &amp; Y</span></div>
         </div>
