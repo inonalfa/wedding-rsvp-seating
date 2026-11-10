@@ -97,7 +97,7 @@ function formatDate(value: string | null | undefined) {
   return new Intl.DateTimeFormat("he-IL", {
     dateStyle: "short",
     timeStyle: "short",
-    timeZone: "Asia/Jerusalem",
+    timeZone: eventConfig.timeZone,
   }).format(date);
 }
 

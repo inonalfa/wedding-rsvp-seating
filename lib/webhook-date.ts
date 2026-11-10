@@ -1,4 +1,5 @@
-const WEBHOOK_TIME_ZONE = "Asia/Jerusalem";
+import { eventConfig } from './event-config';
+const WEBHOOK_TIME_ZONE = eventConfig.timeZone;
 
 type WebhookDatePart = "day" | "month" | "year" | "hour" | "minute";
 

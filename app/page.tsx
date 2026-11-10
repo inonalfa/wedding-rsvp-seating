@@ -180,7 +180,7 @@ export default function Home() {
         <div className="hero-image-shell">
           <div className="hero-image-motion" ref={heroImage}><Image className="hero-image" src="/demo-hero.svg" sizes="(max-width: 900px) 100vw, 52vw" width={2048} height={1243} alt="איור חגיגי לדוגמה" priority unoptimized /></div>
           <div className="hero-image-shade" />
-          <div className="hero-image-caption"><span>THE NEXT CHAPTER</span><span>D &amp; Y</span></div>
+          <div className="hero-image-caption"><span>THE NEXT CHAPTER</span><span>{eventConfig.monogram[0]} &amp; {eventConfig.monogram[1]}</span></div>
         </div>
       </div>
       <a className="scroll-cue" href="#celebrate"><span>עוד קצת מהערב שלנו</span><Icon name="down" /></a>

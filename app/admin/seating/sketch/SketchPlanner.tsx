@@ -8,7 +8,7 @@ import { downloadSketchPdf } from '@/lib/sketch-pdf';
 import SketchTableLinkDialog from './SketchTableLinkDialog';
 type Saved = { sketch: SeatingSketch; revision: number; updatedAt: string | null };
 type Gesture = { id: string; ids: string[]; mode: 'move' | 'resize'; startX: number; startY: number; scale: number; original: SketchItem; before: SeatingSketch };
-const timestamp = (v: string) => new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' }).format(new Date(v));
+const timestamp = (v: string) => new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: eventConfig.timeZone }).format(new Date(v));
 export default function SketchPlanner() {
   const [sketch, setSketch] = useState<SeatingSketch>(createInitialSketch);
   const sketchRef = useRef(sketch);
@@ -205,7 +205,7 @@ export default function SketchPlanner() {
   function add() {
     if (sketch.items.length >= 150) return;
     const n = sketch.items.filter(i => i.kind === newKind).length + 1;
-    const item: SketchItem = { id: crypto.randomUUID(), kind: newKind, label: newKind === 'round' ? String(n) : `${kindLabels[newKind]} ${n}`, x: sketch.width / 2 - 90, y: sketch.height / 2 - 60, width: newKind === 'round' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 300 : 200, height: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 200 : 90, rotation: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_ROTATION : 0, seats: newKind === 'round' ? 12 : newKind === 'banquet' ? 24 : 0 };
+    const item: SketchItem = { id: crypto.randomUUID(), kind: newKind, label: newKind === 'round' ? String(n) : `${kindLabels[newKind]} ${n}`, x: sketch.width / 2 - 90, y: sketch.height / 2 - 60, width: newKind === 'round' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 300 : 200, height: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 200 : 90, rotation: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_ROTATION : 0, seats: newKind === 'round' ? eventConfig.seating.standardCapacity : newKind === 'banquet' ? eventConfig.seating.standardCapacity * 2 : 0 };
     apply({ ...sketch, items: [...sketch.items, fitItem(item, sketch)] }); setSelected([item.id]);
   }
   function leave(e: React.MouseEvent<HTMLAnchorElement>) {

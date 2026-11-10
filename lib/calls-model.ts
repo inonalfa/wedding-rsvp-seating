@@ -58,7 +58,7 @@ export function isCoolingDown(guest: CallGuest, now = Date.now()) {
 }
 
 export function israelDateKey(now = Date.now()) {
-  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Jerusalem',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:eventConfig.timeZone,year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(now);
   const part=(type:string)=>parts.find(p=>p.type===type)?.value??'';
   return `${part('year')}-${part('month')}-${part('day')}`;
 }
