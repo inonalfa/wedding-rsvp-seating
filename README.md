@@ -25,7 +25,7 @@ Open the URL printed by Vite. `DEMO_MODE=1` opens `/admin` and `/find-table` wit
 
 ## Configure your event
 
-Edit `lib/event-config.ts` for event dates, venue, source sheet names and the special table number. Search the `app/` directory for the sample hosts, copy and date to tailor all UI text. Replace the placeholder SVGs under `public/`. The sample read source has two tabs of rows A:T. Review `lib/seating-model.ts` and `lib/demo-data.ts` before connecting real data.
+Edit `lib/event-config.ts` for event dates, venue and source sheet names. Table 2 has a special capacity policy in the seating model; change the model and its tests if your event uses a different table. Search the `app/` directory for the sample hosts, copy and date to tailor all UI text. Replace the placeholder SVGs under `public/`. The sample read source has two tabs of rows A:T. Review `lib/seating-model.ts` and `lib/demo-data.ts` before connecting real data.
 
 Copy `.dev.vars.example` into `.dev.vars` for local development. Set production secrets with Wrangler or your deployment secret manager. Never commit `.dev.vars`, a database, a real guest export or invitation links.
 

@@ -9,7 +9,6 @@ export const eventConfig = {
   address: 'תל אביב',
   parents: ['משפחת הכלה', 'משפחת החתן'] as const,
   sheetNames: ['מוזמנים דנה', 'מוזמנים יואב'] as const,
-  specialTableNumber: 2,
 } as const;
 export const eventHosts = eventConfig.hosts.join(' ו');
 export const eventDate = eventConfig.date.split('-').reverse().join('.');
