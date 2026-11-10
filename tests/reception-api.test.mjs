@@ -1,0 +1,45 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {DatabaseSync} from 'node:sqlite';
+import {readFileSync} from 'node:fs';
+const {default:worker}=await import('../dist/server/index.js');
+test('public reception flow validates tickets, counts, capacity, revisions, duplicates and undo',async()=>{
+ const sql=new DatabaseSync(':memory:');
+ sql.exec(readFileSync(new URL('../drizzle/0007_natural_riptide.sql',import.meta.url),'utf8'));
+ sql.exec('CREATE TABLE call_tasks (invite_id TEXT PRIMARY KEY, call_status TEXT)');
+ const header=['קטגוריה','שם פרטי','שם משפחה','פלאפון','מספר מוזמנים','מקושר ל','ID לקישור','קישור אישי קצר','מזהה הזמנה','סטטוס הגעה','מספר מאשרים'];
+ const row=(id,first,count)=>['חברים',first,'בדיקה','0500000000',count,'','','',id,'מאשרים',count];
+ const ranges=[{range:"'מוזמנים דנה'!A1:K4",values:[header,row('one','אחד',1),row('pair','זוג',2),row('extra','נוסף',1)]},{range:"'מוזמנים יואב'!A1:K1",values:[header]}];
+ const plan={tables:[{id:'a',number:1,capacity:2,guests:[]},{id:'b',number:3,capacity:1,guests:[]}]};
+ sql.prepare('INSERT INTO seating_sources VALUES(1,?,?)').run(JSON.stringify(ranges),new Date().toISOString());
+ sql.prepare('INSERT INTO seating_plans VALUES(1,?,1,?)').run(JSON.stringify(plan),new Date().toISOString());
+ let race=false;
+ const DB={prepare(query){let args=[];return{bind(...a){args=a;return this;},async first(){if(race&&query.startsWith('UPDATE seating_plans')){race=false;sql.exec('UPDATE seating_plans SET revision=revision+1');}return sql.prepare(query).get(...args)??null;},async all(){return{results:sql.prepare(query).all(...args)};},async run(){return sql.prepare(query).run(...args);}};},async batch(statements){return Promise.all(statements.map(s=>s.run()));}};
+ const env={AUTH_MODE:'sites',DB,INVITE_SHORT_TOKEN_SECRET:'test-secret-only',ASSETS:{fetch:async()=>new Response('',{status:404})}};
+ const ctx={waitUntil(){},passThroughOnException(){}};
+ const request=(path,body,origin='http://localhost')=>worker.fetch(new Request('http://localhost'+path,{method:body?'POST':'GET',headers:{'Content-Type':'application/json',origin},...(body?{body:JSON.stringify(body)}:{})}),env,ctx);
+ const search=async name=>(await(await request('/api/find-table',{query:name})).json()).results[0];
+ const seat=(ticket,tableId,revision,action='seat',origin)=>request('/api/find-table/seating',{ticket,tableId,revision,action},origin);
+ try{
+  let availability=await(await request('/api/find-table/seating')).json();assert.equal(availability.tables[0].available,2);
+  const pair=await search('זוג בדיקה');assert.equal(pair.count,2);assert.ok(pair.ticket);assert.equal(pair.phone,undefined);
+  assert.equal((await seat('fake','a',1)).status,400);
+  assert.equal((await seat(pair.ticket+'x','a',1)).status,400);
+  assert.equal((await seat(pair.ticket,'a',1,'seat','https://other.test')).status,403);
+  assert.equal((await seat(pair.ticket,'b',1)).status,400);
+  assert.equal((await seat(pair.ticket,'a',0)).status,409);
+  const result=await seat(pair.ticket,'a',1);assert.equal(result.status,200);const saved=await result.json();assert.equal(saved.revision,2);assert.equal(saved.tables[0].available,0);assert.ok(saved.undoTicket);
+  const ordered=(await(await request('/api/find-table',{query:'בדיקה'})).json()).results;
+  assert.deepEqual(ordered.map(r=>r.tableNumber),[null,null,1],'unseated matches precede seated matches');
+  assert.equal((await seat(pair.ticket,'a',1)).status,200,'retry is idempotent');
+  assert.equal(JSON.parse(sql.prepare('SELECT document FROM seating_plans').get().document).tables[0].guests.length,1);
+  const extra=await search('נוסף בדיקה');assert.equal((await seat(extra.ticket,'a',2)).status,400,'full table');
+  assert.equal((await seat(saved.undoTicket,'b',2)).status,403,'undo cannot be used as a seat ticket');
+  const undo=await seat(saved.undoTicket,undefined,2,'undo');assert.equal(undo.status,200);const undone=await undo.json();assert.equal(undone.revision,3);assert.equal(undone.tables[0].available,2);
+  race=true;assert.equal((await seat(pair.ticket,'a',3)).status,409,'compare-and-swap catches a racing device');
+  assert.deepEqual(JSON.parse(sql.prepare('SELECT document FROM seating_plans').get().document).tables[0].guests,[]);
+  ranges[0].values[2][10]=3;sql.prepare('UPDATE seating_sources SET document=?').run(JSON.stringify(ranges));assert.equal((await seat(pair.ticket,'a',4)).status,400,'count changed after search');
+  sql.prepare('UPDATE seating_sources SET fetched_at=?').run('2000-01-01T00:00:00Z');assert.equal((await seat(extra.ticket,'b',4)).status,503,'stale upstream data blocks changes');
+  assert.equal(sql.prepare('SELECT count(*) AS total FROM rsvp_responses').get().total,0,'seating never changes RSVPs');
+ }finally{sql.close();}
+});
