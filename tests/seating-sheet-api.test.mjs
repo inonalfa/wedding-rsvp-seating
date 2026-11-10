@@ -14,7 +14,7 @@ test('sheet sync confirms writes, handles concurrent moves, clears seats and ret
  const DB={prepare(query){let args=[];return{bind(...a){args=a;return this;},async first(){return sql.prepare(query).get(...args)??null;},async all(){return{results:sql.prepare(query).all(...args)};},async run(){return sql.prepare(query).run(...args);}};},async batch(s){return Promise.all(s.map(x=>x.run()));}};
  const env={AUTH_MODE:'sites',DB,ADMIN_EMAILS:'admin@example.test',SEATING_SYNC_SECRET:'service-test',MAKE_WEBHOOK_URL:'https://make.test/write',SEATING_SHEETS_WEBHOOK_URL:'https://make.test/read',ASSETS:{fetch:async()=>new Response('',{status:404})}};
  const ctx={waitUntil(){},passThroughOnException(){}};
- const request=(path,body,auth='service')=>worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'content-type':'application/json',...(auth==='service'?{authorization:'Bearer service-test'}:{})},body:JSON.stringify(body??{})}),env,ctx);
+ const request=(path,body,auth='service')=>worker.fetch(new Request('http://localhost'+path,{method:'POST',headers:{'content-type':'application/json',...(auth==='service'?{authorization:'Bearer service-test','X-Webhook-Timestamp':String(Math.floor(Date.now()/1000)),'X-Webhook-Nonce':crypto.randomUUID()}:{})},body:JSON.stringify(body??{})}),env,ctx);
  const save=(p,revision)=>worker.fetch(new Request('http://localhost/api/admin/seating',{method:'PUT',headers:{'content-type':'application/json','oai-authenticated-user-email':'admin@example.test'},body:JSON.stringify({plan:p,revision})}),env,ctx);
  await worker.fetch(new Request('http://localhost/api/calendar'),env,ctx);
  const original=globalThis.fetch,writes=[];let fail=false,plain=false,hold=null,entered=null;

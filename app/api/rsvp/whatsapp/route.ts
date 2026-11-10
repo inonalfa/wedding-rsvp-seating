@@ -6,6 +6,8 @@ import { decodeInviteToken } from "@/lib/invite-token";
 
 import { rsvpGuestLimit } from "@/lib/rsvp-form";
 
+import { claimWebhookRequest } from "@/lib/webhook-replay";
+
 type WhatsappRsvp = {
   inviteId?: unknown;
   attendance?: unknown;
@@ -70,10 +72,13 @@ function equalSecret(a: string, b: string) {
 
 export async function POST(request: Request) {
   const secret = getWeddingRuntimeConfig().whatsappRsvpSecret;
-  const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  const bearer = request.headers.get("authorization")?.match(/^Bearer\s+(.+)$/i)?.[1] ?? "";
   if (!secret || !equalSecret(bearer, secret)) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  const denied = await claimWebhookRequest(request, "whatsapp-rsvp");
+  if (denied) return denied;
 
   let payload: WhatsappRsvp;
   try {

@@ -22,7 +22,7 @@ function token(row=123,name='אמיר'){
  return Buffer.concat([payload,createHmac('sha256',Buffer.alloc(32,7)).update(payload).digest().subarray(0,8)]).toString('base64url');
 }
 function post(f,body,secret='test-webhook'){
- return worker.fetch(new Request('http://localhost/api/rsvp/whatsapp',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret},body:JSON.stringify(body)}),f.env,ctx);
+ return worker.fetch(new Request('http://localhost/api/rsvp/whatsapp',{method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+secret,'X-Webhook-Timestamp':String(Math.floor(Date.now()/1000)),'X-Webhook-Nonce':crypto.randomUUID()},body:JSON.stringify(body)}),f.env,ctx);
 }
 const sheets=(signed=token(),id='dana-0123')=>[{range:"'מוזמנים דנה'!D2:I269",values:[['050-0000006','1','',signed,'',id]]}];
 test('legacy WhatsApp RSVP saves and syncs using a signed token even without generated_invites',async()=>{

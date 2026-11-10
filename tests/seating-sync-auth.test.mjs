@@ -7,7 +7,7 @@ test('real Worker routing accepts browser Basic and service Bearer for seating s
     const browser = await f.request('/api/admin/seating/sync', { headers: { Authorization: f.admin, 'Sec-Fetch-Site': 'same-origin', 'Sec-Fetch-Mode': 'cors' } });
     assert.equal(browser.status, 200, 'browser admin must reach the sync handler');
     assert.equal((await browser.json()).pending, 0);
-    assert.equal((await f.request('/api/admin/seating/sync', { headers: { Authorization: 'Bearer test-sync-secret' } })).status, 200);
+    assert.equal((await f.request('/api/admin/seating/sync', { headers: { Authorization: 'Bearer test-sync-secret', 'X-Webhook-Timestamp': String(Math.floor(Date.now()/1000)), 'X-Webhook-Nonce': crypto.randomUUID() } })).status, 200);
     for (const headers of [{}, { Authorization: 'Bearer wrong' }, { Authorization: `Basic ${btoa('admin:wrong')}` }, { 'oai-authenticated-user-email': 'admin@example.test' }]) assert.equal((await f.request('/api/admin/seating/sync', { headers })).status, 401);
   } finally { f.sql.close(); }
 });
