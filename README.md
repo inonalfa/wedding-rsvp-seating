@@ -93,7 +93,7 @@ The checked-in migrations retain the original schema history. `.openai/hosting.j
 
 The Worker uses request-local D1 bindings and configuration so concurrent requests do not mix secrets. Standalone mode strips client-supplied identity headers and protects admin and table-finder routes. Demo mode contains only fictional records. Staff search returns names, tables and signed seating tickets, so restrict staff credentials. D1 rate limiting protects public RSVP and invitation endpoints; add edge controls and monitoring for a real deployment. Set a retention policy for personal information, rotate credentials after the event and use separate staging and production databases. HTTP Basic credentials may remain cached in a browser session.
 
-See [SECURITY.md](SECURITY.md) and [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed; font files in `public/fonts/` retain their SIL OFL notices.
+See [SECURITY.md](SECURITY.md), [release verification](docs/RELEASE_VERIFICATION.md) and [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed; font files in `public/fonts/` retain their SIL OFL notices.
 
 ## Known limitations
 
