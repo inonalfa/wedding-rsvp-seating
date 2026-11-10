@@ -81,6 +81,10 @@ Generate each secret independently. Invitation signing/encryption secrets must b
 
 `DB` is the D1 binding declared in `wrangler.jsonc`. `ASSETS` (adapter-managed static assets) and `IMAGES` (optional image optimization) are Worker bindings, not scalar variables in `.dev.vars`. Keep deployment secrets outside committed Wrangler configuration.
 
+### RSVP guest limits
+
+A personal invitation with a positive `maxGuests` enforces that limit in both the server and form, including WhatsApp updates. The existing value `0` means unspecified (newly generated open-count invitations), so it retains the general safety limit of 1000. Declines store zero attendees.
+
 ### Sheets contract
 
 The read webhook returns `valueRanges` for tabs matching `eventConfig.sheetNames`, each with a header and rows A:T. Relevant columns: D phone, E invited count, G guest number, I stable invite ID, J RSVP status, K confirmed count, T table number. `MAKE_WEBHOOK_URL` receives JSON events with `schemaVersion` and `event`. For `seating.updated`, locate the row by `inviteId` and `sourceSheet`, write integer `tableNumber` to T or clear it when the value is `""`, and respond `{ "ok": true, "event": "seating.updated" }` only after a successful write. The application leases synchronization, tracks a snapshot and retries pending changes. Implement and secure the external scenario separately. Inbound service calls require bearer auth plus fresh timestamp and nonce headers; migrate callers according to [the webhook protocol](docs/WEBHOOK_PROTOCOL.md) before deploying. Browser admin sync continues to use Basic auth.
