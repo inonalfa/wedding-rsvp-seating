@@ -1,6 +1,7 @@
 'use client';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
+import SeatingSummary from './SeatingSummary';
 import { eventConfig, eventDate, eventHosts, allowsTableOverflow, reservedTableNumber } from '@/lib/event-config';
 import { compactTableNumbers, searchSeatingGuests, tableOccupancy, tableMajoritySide, tableAttendanceSummary, sortedTableGuests, type TableGuestSort, type Guest, type SeatingPlan, type SeatingTable } from '@/lib/seating-model';
 type Data = { guests: Guest[]; plan: SeatingPlan; revision: number; fetchedAt: string | null; updatedAt: string | null; warning: string | null };
@@ -84,14 +85,6 @@ export default function SeatingPlanner() {
     row.scrollIntoView({behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'center'});
     row.focus({preventScroll:true});
   }
-  const total=guests.reduce((s,g)=>s+(g.count??0),0); const seated=guests.filter(g=>assigned.has(g.id)).reduce((s,g)=>s+(g.count??0),0);
-  const totalSeats=plan.tables.reduce((sum,t)=>sum+(t.number===reservedTableNumber?t.capacity:eventConfig.seating.standardCapacity),0);
-  const unknown=guests.filter(g=>g.count===null).length;
-  const confirmedUnseated=unseated.filter(g=>g.attendance==='yes');
-  const confirmedUnseatedCount=confirmedUnseated.reduce((sum,g)=>sum+(g.count??0),0);
-  const confirmedUnseatedEstimated=confirmedUnseated.filter(g=>g.estimated&&g.count!==null).reduce((sum,g)=>sum+(g.count??0),0);
-  const confirmedUnseatedUnknown=confirmedUnseated.filter(g=>g.count===null).length;
-  const availableSeats=plan.tables.reduce((sum,t)=>sum+Math.max(0,t.capacity-t.guests.reduce((occupied,id)=>occupied+(guestMap.get(id)?.count??0),0)),0);
   const overflow=plan.tables.filter(t=>!allowsTableOverflow(t.number)&&tableOccupancy(t,guests)>t.capacity);
   const tableFiltersActive=tableCapacityFilter!=='all'||tableSideFilter!=='all';
   const visibleTables=plan.tables.filter(t=>{
@@ -139,7 +132,7 @@ export default function SeatingPlanner() {
     {error&&<div className="seating-alert" role="alert">{error}{conflict&&<button onClick={()=>{if(window.confirm('לטעון את הסידור העדכני? השינויים המקומיים שלא נשמרו יוחלפו.'))void load(false,true);}}>טעינת הסידור העדכני</button>}{!data&&<button disabled={busy} onClick={()=>load()}>ניסיון נוסף</button>}</div>}
     {notice&&<div className="seating-success" role="status">{notice}</div>}{data?.warning&&<div className="seating-alert">{data.warning}</div>}
     {overflow.length>0&&<div className="seating-alert">חריגה מהקיבולת בשולחנות {overflow.map(t=>t.number).join(', ')}. יש להעביר הזמנות או להגדיל את הקיבולת.</div>}
-    <section className="seating-stats" aria-label="סיכום ההושבה"><article><span>סה״כ מקומות</span><strong>{totalSeats}</strong><small>{eventConfig.seating.standardCapacity} לכל שולחן · שולחן {reservedTableNumber} לפי הקיבולת שלו</small></article><article><span>כבר שובצו</span><strong>{seated}</strong><small>ב-{plan.tables.length} שולחנות</small></article><article><span>ממתינים לשיבוץ</span><strong>{total-seated}</strong><small>{unseated.length} הזמנות{unknown>0?` · ${unknown} ללא כמות`:''}</small></article><article><span>אישרו וטרם שובצו</span><strong>{confirmedUnseatedCount}</strong><small>{confirmedUnseated.length} הזמנות{confirmedUnseatedEstimated>0?` · מתוכם ${confirmedUnseatedEstimated} משוערים`:''}{confirmedUnseatedUnknown>0?` · ${confirmedUnseatedUnknown} ללא כמות`:''}</small></article><article><span>מקומות פנויים</span><strong>{availableSeats}</strong><small>בכל השולחנות בסידור</small></article><article><span>סה״כ שולחנות</span><strong>{plan.tables.length}</strong><small>כל השולחנות בסידור</small></article></section>
+    <SeatingSummary guests={guests} plan={plan} />
     {busy&&!data?<div className="seating-loading" role="status">טוען מוזמנים משני הגיליונות...</div>:data&&<div className="seating-workspace">
       <aside className="seating-guests"><div className="seating-panel-heading"><h2>ממתינים לשיבוץ</h2><span>{visible.length} הזמנות</span></div>
         <input type="search" aria-label="חיפוש מוזמנים" aria-describedby="seating-search-hint" placeholder="חיפוש שם, קבוצה או קרבה" value={search} onChange={e=>setSearch(e.target.value)}/>
