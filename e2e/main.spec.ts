@@ -56,7 +56,10 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
 
     const staffPage = await staff.newPage();
     await staffPage.goto('/find-table');
+    const searchResponsePromise = staffPage.waitForResponse(response => response.url().endsWith('/api/find-table') && response.request().method() === 'POST');
     await staffPage.getByRole('searchbox').fill('מיה');
+    const searchResponse = await searchResponsePromise;
+    expect(searchResponse.status(), await searchResponse.text()).toBe(200);
     await expect(staffPage.getByText('מיה ברק')).toBeVisible();
     await expect(staffPage.getByText(/שולחן 1/).first()).toBeVisible();
     await capture(staffPage, '04-search');
