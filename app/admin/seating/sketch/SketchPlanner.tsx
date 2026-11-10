@@ -1,13 +1,14 @@
 'use client';
-import { useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type PointerEvent, type KeyboardEvent } from 'react';
 import Link from 'next/link';
+import { eventConfig, eventDate, eventHosts } from '@/lib/event-config';
 import type { Guest, SeatingPlan } from '@/lib/seating-model';
 import { createInitialSketch, fitItem, chairPositions, kindLabels, alignTablesToGrid, SKETCH_GRID, DEFAULT_TABLE_SIDE, DEFAULT_TABLE_ROTATION, isSketchTable, sketchItemLabel, moveSketchItems, resizeSketchTables, type SeatingSketch, type SketchItem, type SketchKind, linkSketchTable, unlinkSketchTable, syncSketchTableLabels, unlinkedSeatingTables, type SketchSeatingTable } from '@/lib/seating-sketch';
 import { downloadSketchPdf } from '@/lib/sketch-pdf';
 import SketchTableLinkDialog from './SketchTableLinkDialog';
 type Saved = { sketch: SeatingSketch; revision: number; updatedAt: string | null };
 type Gesture = { id: string; ids: string[]; mode: 'move' | 'resize'; startX: number; startY: number; scale: number; original: SketchItem; before: SeatingSketch };
-const timestamp = (v: string) => new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' }).format(new Date(v));
+const timestamp = (v: string) => new Intl.DateTimeFormat('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: eventConfig.timeZone }).format(new Date(v));
 export default function SketchPlanner() {
   const [sketch, setSketch] = useState<SeatingSketch>(createInitialSketch);
   const sketchRef = useRef(sketch);
@@ -136,7 +137,7 @@ export default function SketchPlanner() {
     const current = sketchRef.current;
     apply({ ...current, items: current.items.map(i => i.id === id ? fitItem({ ...i, ...patch }, current) : i) }, history);
   }
-  async function save() {
+  const save = useCallback(async () => {
     if (!data || saveLock.current || conflict || gesture.current) return;
     saveLock.current = true; setSaving(true); setError('');
     const submitted = sketchRef.current; const submittedVersion = version.current;
@@ -150,11 +151,11 @@ export default function SketchPlanner() {
       setDirty(version.current !== submittedVersion); setPaused(false);
     } catch (e) { setPaused(true); setError(e instanceof Error ? e.message : 'השמירה נכשלה'); }
     finally { saveLock.current = false; setSaving(false); }
-  }
+  }, [data, conflict, seatingTables]);
   useEffect(() => {
     if (!dirty || !ready || saving || conflict || paused || interacting) return;
     const timer = window.setTimeout(() => { void save(); }, 2500); return () => window.clearTimeout(timer);
-  }, [sketch, dirty, ready, saving, conflict, paused, interacting, data]);
+  }, [sketch, dirty, ready, saving, conflict, paused, interacting, save]);
   function start(e: PointerEvent<HTMLDivElement | HTMLButtonElement>, item: SketchItem, mode: Gesture['mode']) {
     if (!ready || e.button !== 0) return;
     e.preventDefault(); e.stopPropagation();
@@ -204,7 +205,7 @@ export default function SketchPlanner() {
   function add() {
     if (sketch.items.length >= 150) return;
     const n = sketch.items.filter(i => i.kind === newKind).length + 1;
-    const item: SketchItem = { id: crypto.randomUUID(), kind: newKind, label: newKind === 'round' ? String(n) : `${kindLabels[newKind]} ${n}`, x: sketch.width / 2 - 90, y: sketch.height / 2 - 60, width: newKind === 'round' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 300 : 200, height: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 200 : 90, rotation: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_ROTATION : 0, seats: newKind === 'round' ? 12 : newKind === 'banquet' ? 24 : 0 };
+    const item: SketchItem = { id: crypto.randomUUID(), kind: newKind, label: newKind === 'round' ? String(n) : `${kindLabels[newKind]} ${n}`, x: sketch.width / 2 - 90, y: sketch.height / 2 - 60, width: newKind === 'round' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 300 : 200, height: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_SIDE : newKind === 'dance' ? 200 : 90, rotation: newKind === 'round' || newKind === 'banquet' ? DEFAULT_TABLE_ROTATION : 0, seats: newKind === 'round' ? eventConfig.seating.standardCapacity : newKind === 'banquet' ? eventConfig.seating.standardCapacity * 2 : 0 };
     apply({ ...sketch, items: [...sketch.items, fitItem(item, sketch)] }); setSelected([item.id]);
   }
   function leave(e: React.MouseEvent<HTMLAnchorElement>) {
@@ -216,8 +217,8 @@ export default function SketchPlanner() {
   const tables = sketch.items.filter(i => i.kind === 'round' || i.kind === 'banquet');
   const numberField = (name: string, key: 'x' | 'y' | 'width' | 'height' | 'seats', min: number, max: number) => active && <label>{name}<input type="number" min={min} max={max} step="1" value={active[key]} onChange={e => { if (!e.target.value || !Number.isFinite(e.target.valueAsNumber)) return; const v = Math.max(min, Math.min(max, Math.round(e.target.valueAsNumber))); update(active.id, active.kind === 'round' && (key === 'width' || key === 'height') ? { width: v, height: v } : { [key]: v }); }} /></label>;
   return <main className="seating-shell sketch-shell" dir="rtl">
-    <header className="seating-topbar"><Link href="/admin" onClick={leave}>D <i>&amp;</i> Y <span>ניהול החתונה</span></Link><span>10.06.2027</span></header>
-    <section className="seating-heading"><div><p className="seating-eyebrow">דנה ויואב</p><h1>סקיצת האולם</h1><p>גוררים למיקום הרצוי. לבחירה קבוצתית סמנו שולחנות ברשימה או לחצו עליהם עם Shift.</p></div><div className="seating-actions"><label className="sketch-pdf-option"><input type="checkbox" checked={includeTableNames} disabled={exporting} onChange={e => setIncludeTableNames(e.target.checked)} /> כולל שמות שולחנות ב-PDF</label><button disabled={!ready || interacting || exporting} onClick={() => void exportPdf()}>{exporting ? 'מייצא...' : 'ייצוא ל-PDF'}</button><Link className="sketch-link" href="/admin/seating" onClick={leave}>סידורי הושבה</Link><button className="seating-primary" disabled={!ready || !dirty || saving || conflict || interacting} onClick={() => void save()}>{saving ? 'שומר...' : paused ? 'ניסיון שמירה נוסף' : 'שמירה עכשיו'}</button></div></section>
+    <header className="seating-topbar"><Link href="/admin" onClick={leave}>{eventConfig.monogram[0]} <i>&amp;</i> {eventConfig.monogram[1]} <span>ניהול החתונה</span></Link><span>{eventDate}</span></header>
+    <section className="seating-heading"><div><p className="seating-eyebrow">{eventHosts}</p><h1>סקיצת האולם</h1><p>גוררים למיקום הרצוי. לבחירה קבוצתית סמנו שולחנות ברשימה או לחצו עליהם עם Shift.</p></div><div className="seating-actions"><label className="sketch-pdf-option"><input type="checkbox" checked={includeTableNames} disabled={exporting} onChange={e => setIncludeTableNames(e.target.checked)} /> כולל שמות שולחנות ב-PDF</label><button disabled={!ready || interacting || exporting} onClick={() => void exportPdf()}>{exporting ? 'מייצא...' : 'ייצוא ל-PDF'}</button><Link className="sketch-link" href="/admin/seating" onClick={leave}>סידורי הושבה</Link><button className="seating-primary" disabled={!ready || !dirty || saving || conflict || interacting} onClick={() => void save()}>{saving ? 'שומר...' : paused ? 'ניסיון שמירה נוסף' : 'שמירה עכשיו'}</button></div></section>
     <div className="seating-save-line" role="status"><span>{loading ? 'טוען את הסקיצה...' : saving ? 'שומר את הסקיצה...' : dirty ? paused || conflict ? 'השינויים טרם נשמרו' : 'השינויים יישמרו אוטומטית בעוד רגע' : data?.updatedAt ? `הסקיצה נשמרה ב-${timestamp(data.updatedAt)}` : 'הבסיס מוכן לעריכה'}</span><span>{tables.length} שולחנות · {tables.reduce((n, i) => n + i.seats, 0)} מקומות</span></div>
     {error && <div className="seating-alert" role="alert">{error}{(!data || conflict) && <button disabled={loading} onClick={() => { if (!dirty || window.confirm('לטעון מחדש? השינויים שלא נשמרו יוחלפו בסקיצה השמורה.')) void load(); }}>טעינה מחדש</button>}</div>}
     {ready && <div className="sketch-workspace">

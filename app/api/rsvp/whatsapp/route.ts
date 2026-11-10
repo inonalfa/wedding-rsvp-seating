@@ -75,7 +75,10 @@ export async function POST(request: Request) {
 
   let payload: WhatsappRsvp;
   try {
-    payload = (await request.json()) as WhatsappRsvp;
+    const text = await request.text();
+    if (text.length > 300_000) return Response.json({ error: "Payload too large" }, { status: 413 });
+    payload = JSON.parse(text) as WhatsappRsvp;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Invalid payload');
   } catch {
     return Response.json({ error: "Invalid JSON" }, { status: 400 });
   }

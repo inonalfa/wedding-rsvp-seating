@@ -1,4 +1,4 @@
-import {eventConfig} from './event-config';
+import {eventConfig, reservedTableNumber} from './event-config';
 export type Guest = { id: string; name: string; side: string; category: string; linkedTo: string; attendance: 'yes' | 'pending'; count: number | null; estimated: boolean; sourceRow: number };
 export type SeatingTable = { id: string; number: number; name?: string; capacity: number; guests: string[] };
 export type SeatingPlan = { tables: SeatingTable[] };
@@ -59,16 +59,16 @@ export function tableOccupancy(table: SeatingTable, guests: Guest[]) {
   return table.guests.reduce((sum, id) => sum + (map.get(id)?.count ?? 0), 0);
 }
 
-export function tableMajoritySide(table: SeatingTable, guests: Guest[]): 'דנה' | 'יואב' | 'mixed' | 'empty' {
+export function tableMajoritySide(table: SeatingTable, guests: Guest[]): string {
   const map = new Map(guests.map(g => [g.id, g]));
-  let dana = 0, yoav = 0;
+  let first = 0, second = 0;
   for (const id of table.guests) {
     const guest = map.get(id);
-    if (guest?.side === 'דנה') dana += guest.count ?? 0;
-    if (guest?.side === 'יואב') yoav += guest.count ?? 0;
+    if (guest?.side === eventConfig.hosts[0]) first += guest.count ?? 0;
+    if (guest?.side === eventConfig.hosts[1]) second += guest.count ?? 0;
   }
-  if (dana + yoav === 0) return 'empty';
-  return dana === yoav ? 'mixed' : dana > yoav ? 'דנה' : 'יואב';
+  if (first + second === 0) return 'empty';
+  return first === second ? 'mixed' : first > second ? eventConfig.hosts[0] : eventConfig.hosts[1];
 }
 
 export type TableGuestSort = 'original' | 'confirmedFirst' | 'pendingFirst';
@@ -91,14 +91,14 @@ export function sortedTableGuests(table: SeatingTable, guests: Guest[], order: T
 }
 
 
-// Keep stable table IDs and assignments, and reserve the existing family table's number.
+// Keep stable table IDs and assignments, including the configured reserved number.
 export function compactTableNumbers(plan: SeatingPlan): SeatingPlan {
-  const fixed = plan.tables.find(t => t.number === 2);
+  const fixed = plan.tables.find(t => t.number === reservedTableNumber);
   let number = 1;
   const numbers = new Map<string, number>();
   for (const table of [...plan.tables].sort((a,b) => a.number-b.number)) {
-    if (table.id === fixed?.id) { numbers.set(table.id, 2); continue; }
-    if (fixed && number === 2) number++;
+    if (table.id === fixed?.id) { numbers.set(table.id, reservedTableNumber); continue; }
+    if (fixed && number === reservedTableNumber) number++;
     numbers.set(table.id, number++);
   }
   return { tables: plan.tables.map(table => ({ ...table, number: numbers.get(table.id)! })) };

@@ -1,4 +1,5 @@
 import type {Guest,SeatingPlan} from './seating-model';
+import {allowsTableOverflow} from './event-config';
 export function receptionTables(plan:SeatingPlan,guests:Guest[]){
  const byId=new Map(guests.map(g=>[g.id,g]));
  return plan.tables.map(t=>{
@@ -17,7 +18,7 @@ export function assignReceptionGuest(plan:SeatingPlan,guests:Guest[],guestId:str
   const table=receptionTables(plan,guests).find(t=>t.id===targetId);
   if(!table)throw new Error('השולחן כבר אינו קיים. רעננו את הרשימה.');
   if(table.available===null)throw new Error('חסרים נתוני כמות בשולחן הזה. יש לבדוק בסידורי ההושבה.');
-  if(table.number!==2&&table.available<guest.count)throw new Error(`נותרו רק ${table.available} מקומות בשולחן. בחרו שולחן אחר.`);
+  if(!allowsTableOverflow(table.number)&&table.available<guest.count)throw new Error(`נותרו רק ${table.available} מקומות בשולחן. בחרו שולחן אחר.`);
  }
  return {changed:true,plan:{tables:plan.tables.map(t=>({...t,guests:[...t.guests.filter(id=>id!==guestId),...(t.id===targetId?[guestId]:[])]}))}};
 }

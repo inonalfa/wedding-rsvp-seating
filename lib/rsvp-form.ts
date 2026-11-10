@@ -6,8 +6,8 @@ export function validateRsvp(fields: RsvpFields): RsvpErrors {
   const errors: RsvpErrors = {};
   if (fields.fullName.trim().length < 2) errors.fullName = "איך לרשום אתכם? הזינו שם מלא כדי שנדע ממי האישור.";
   const count = Number(fields.guestCount);
-  if (fields.attendance === "yes" && (!Number.isSafeInteger(count) || count < 1)) {
-    errors.guestCount = "יש להזין מספר שלם של משתתפים, לפחות אחד.";
+  if (fields.attendance === "yes" && (!Number.isSafeInteger(count) || count < 1 || count > 1_000)) {
+    errors.guestCount = "יש להזין מספר שלם של משתתפים, בין 1 ל-1,000.";
   }
   return errors;
 }

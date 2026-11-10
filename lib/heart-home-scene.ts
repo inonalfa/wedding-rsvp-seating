@@ -5,12 +5,14 @@ import {
   PMREMGenerator, Scene, SphereGeometry, SRGBColorSpace, TorusGeometry, WebGLRenderer,
   type Material, type Texture,
 } from "three";
-import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
 import { createHeartHomeGeometry, heartHomeFrame, LOVE_DURATION, smoothProgress } from "./heart-home-geometry";
 
 /** Loaded only in the browser, independently of the invitation and RSVP code. */
 export async function createHeartHomeScene(canvas: HTMLCanvasElement) {
+  const [{ RoomEnvironment }, { RoundedBoxGeometry }] = await Promise.all([
+    import("three/addons/environments/RoomEnvironment.js"),
+    import("three/addons/geometries/RoundedBoxGeometry.js"),
+  ]);
   const renderer = new WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "low-power" });
   renderer.setClearColor(0x000000, 0);
   renderer.outputColorSpace = SRGBColorSpace;

@@ -1,6 +1,6 @@
 import { getD1Binding } from '@/db';
 import { loadSeatingData } from '@/lib/seating-data';
-import { parseCallGuests, composeCallNotes, type CallGuest } from '@/lib/calls-model';
+import { parseCallGuests, composeCallNotes } from '@/lib/calls-model';
 const columns = {
   rsvp_responses: ['id','invite_id','first_name','invited_name','full_name','phone','attendance','guest_count','max_guests','message','source_sheet','source_row','sync_status','sync_error','submitted_at','updated_at'],
   rsvps: ['id','full_name','phone','attendance','guest_count','message','submitted_at','updated_at'],

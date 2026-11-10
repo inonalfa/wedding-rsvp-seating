@@ -33,7 +33,7 @@ export default function SwipeGuestCard({children,label,disabled,selected,onActio
  }
  const action=()=>{setOffset(0);onAction();};
  return <div ref={root} className="finder-swipe-card" onBlur={e=>{if(!e.currentTarget.contains(e.relatedTarget as Node))setOffset(0);}}>
-  <article role="group" tabIndex={disabled?-1:0} aria-label={`${label}. החליקו ימינה או שמאלה, או הקישו Enter לחשיפת הפעולה`} className={`finder-card finder-swipe-surface${selected?' finder-card-selected':''}${dragging?' is-dragging':''}`} style={{transform:`translateX(${disabled?0:offset}px)`}} onPointerDown={begin} onPointerMove={move} onPointerUp={e=>end(e)} onPointerCancel={e=>end(e,true)} onLostPointerCapture={e=>{if(gesture.current)end(e,true);}} onPointerLeave={e=>{if(gesture.current?.axis==='pending')gesture.current=null;}} onKeyDown={e=>{
+  <article role="group" tabIndex={disabled?-1:0} aria-label={`${label}. החליקו ימינה או שמאלה, או הקישו Enter לחשיפת הפעולה`} className={`finder-card finder-swipe-surface${selected?' finder-card-selected':''}${dragging?' is-dragging':''}`} style={{transform:`translateX(${disabled?0:offset}px)`}} onPointerDown={begin} onPointerMove={move} onPointerUp={e=>end(e)} onPointerCancel={e=>end(e,true)} onLostPointerCapture={e=>{if(gesture.current)end(e,true);}} onPointerLeave={()=>{if(gesture.current?.axis==='pending')gesture.current=null;}} onKeyDown={e=>{
    if(disabled)return;
    if(e.key==='ArrowLeft'||e.key==='ArrowRight'){e.preventDefault();setOffset(e.key==='ArrowLeft'?-REVEAL:REVEAL);}
    else if(e.key==='Enter'||e.key===' '){e.preventDefault();setOffset(v=>v?0:-REVEAL);}

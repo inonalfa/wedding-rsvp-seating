@@ -13,6 +13,6 @@ export async function GET(){
   const sketch=withoutTextItems(JSON.parse(row.document)),plan=planRow?JSON.parse(planRow.document):{tables:[]};
   if(!validateSketch(sketch)||!validatePlan(plan))throw new Error('Invalid layout');
   const synced=syncSketchTableLabels(upgradeSketch(sketch),plan.tables);
-  return Response.json({sketch:{...synced,items:synced.items.map(({seatingTableId,...item})=>item)},updatedAt:row.updated_at},{headers});
+  return Response.json({sketch:{...synced,items:synced.items.map(item=>{const publicItem={...item};delete publicItem.seatingTableId;return publicItem;})},updatedAt:row.updated_at},{headers});
  }catch{return Response.json({error:'לא הצלחנו לטעון את הסקיצה. נסו שוב.'},{status:503,headers});}
 }

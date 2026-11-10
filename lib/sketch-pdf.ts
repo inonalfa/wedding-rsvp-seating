@@ -1,4 +1,5 @@
 import { chairPositions, sketchItemLabel, isSketchTable, type SeatingSketch } from './seating-sketch';
+import { eventDate, eventHosts } from './event-config';
 export type SketchPdfOptions = { includeTableNames?: boolean };
 export const PDF_PADDING = 40;
 export const PDF_HEADER = 70;
@@ -10,8 +11,8 @@ function textLines(ctx: CanvasRenderingContext2D, value: string, width: number) 
 }
 export function drawSketchForPdf(ctx:CanvasRenderingContext2D,sketch:SeatingSketch,options:SketchPdfOptions = {}) {
  const size=sketchImageSize(sketch);ctx.fillStyle='#ffffff';ctx.fillRect(0,0,size.width,size.height);
- ctx.direction='rtl';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#233e35';ctx.font='bold 26px Arial';ctx.fillText('סקיצת האולם | דנה ויואב',size.width/2,30);
- ctx.font='16px Arial';ctx.fillStyle='#617268';ctx.fillText('10.06.2027',size.width/2,57);
+ ctx.direction='rtl';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillStyle='#233e35';ctx.font='bold 26px Arial';ctx.fillText(`סקיצת האולם | ${eventHosts}`,size.width/2,30);
+ ctx.font='16px Arial';ctx.fillStyle='#617268';ctx.fillText(eventDate,size.width/2,57);
  ctx.save();ctx.translate(PDF_PADDING,PDF_PADDING+PDF_HEADER);ctx.strokeStyle='#718271';ctx.lineWidth=2;ctx.strokeRect(0,0,sketch.width,sketch.height);
  // Dance floors sit under tables, matching the editor's stacking order.
  const items=[...sketch.items].sort((a,b)=>Number(a.kind!=='dance')-Number(b.kind!=='dance'));

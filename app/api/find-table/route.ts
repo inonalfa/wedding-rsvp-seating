@@ -2,6 +2,7 @@ import {getD1Binding,ensureRsvpSchema} from '@/db';
 import {loadSeatingData} from '@/lib/seating-data';
 import {seatTicket} from '@/lib/reception-token';
 import {searchGuests} from '@/lib/guest-search';
+import {eventConfig} from '@/lib/event-config';
 import type {SheetRange} from '@/lib/seating-model';
 const headers={'Cache-Control':'no-store','X-Robots-Tag':'noindex, nofollow'};
 export async function POST(request:Request){
@@ -13,7 +14,7 @@ export async function POST(request:Request){
   const {guests,plan,warning}=await loadSeatingData();
   const cached=await getD1Binding().prepare('SELECT document FROM seating_sources WHERE id=1').first<{document:string}>();
   const ranges:SheetRange[]=cached?JSON.parse(cached.document):[];
-  const searchable=guests.map(g=>{const range=ranges.find(r=>r.range.startsWith(`'מוזמנים ${g.side}'!`)||r.range.startsWith(`מוזמנים ${g.side}!`));const row=range?.values?.[g.sourceRow-1];return {...g,phone:String(row?.[3]??''),guestNumber:String(row?.[6]??'').trim()};});
+  const searchable=guests.map(g=>{const side=eventConfig.hosts.findIndex(host=>host===g.side);const sheet=eventConfig.sheetNames[side];const range=sheet?ranges.find(r=>r.range.startsWith(`'${sheet}'!`)||r.range.startsWith(`${sheet}!`)):undefined;const row=range?.values?.[g.sourceRow-1];return {...g,phone:String(row?.[3]??''),guestNumber:String(row?.[6]??'').trim()};});
   const matches=searchGuests(searchable,query);
   const tables=new Map(plan.tables.flatMap(t=>t.guests.map(id=>[id,t] as const)));
   // Keep search relevance within each group, but show unseated guests first.

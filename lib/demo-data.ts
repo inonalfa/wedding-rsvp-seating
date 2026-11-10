@@ -14,7 +14,7 @@ export function demoGuestRanges(): SheetRange[] {
   ];
 }
 export function demoSeatingPlan(): SeatingPlan { return { tables: [
-  {id:'demo-table-1',number:1,name:'משפחה',capacity:12,guests:['demo-a-1','demo-b-1']},
-  {id:'demo-table-2',number:2,name:'חברים',capacity:12,guests:['demo-a-2','demo-b-2']},
-  {id:'demo-table-3',number:3,name:'עבודה',capacity:12,guests:[]},
+  {id:'demo-table-1',number:1,name:'משפחה',capacity:eventConfig.seating.standardCapacity,guests:['demo-a-1','demo-b-1']},
+  {id:'demo-table-2',number:2,name:'חברים',capacity:eventConfig.seating.standardCapacity,guests:['demo-a-2','demo-b-2']},
+  {id:'demo-table-3',number:3,name:'עבודה',capacity:eventConfig.seating.standardCapacity,guests:[]},
 ] }; }
