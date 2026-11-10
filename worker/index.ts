@@ -59,9 +59,12 @@ const worker = {
       headers.delete('oai-authenticated-user-email');
       headers.delete('oai-authenticated-user-full-name');
       headers.delete('oai-authenticated-user-full-name-encoding');
-      if (admin && !service) {
-        if ((env.DEMO_MODE !== '1' || env.DEMO_AUTH === '1') && !(env.ADMIN_PASSWORD && await validBasicPassword(request, env.ADMIN_PASSWORD))) return authRequired('Wedding admin');
-        headers.set('oai-authenticated-user-email', env.ADMIN_EMAILS?.split(',')[0]?.trim() || 'demo@example.test');
+      if (admin) {
+        const authenticated = (env.DEMO_MODE === '1' && env.DEMO_AUTH !== '1') ||
+          !!(env.ADMIN_PASSWORD && await validBasicPassword(request, env.ADMIN_PASSWORD));
+        if (authenticated) headers.set('oai-authenticated-user-email', env.ADMIN_EMAILS?.split(',')[0]?.trim() || 'demo@example.test');
+        else if (!service) return authRequired('Wedding admin');
+        // The sync handler independently checks service Bearer credentials.
       } else if (staff && (env.DEMO_MODE !== '1' || env.DEMO_AUTH === '1') && !(env.STAFF_PASSWORD && await validBasicPassword(request, env.STAFF_PASSWORD))) return authRequired('Wedding staff');
     }
     request = new Request(request, { headers });
