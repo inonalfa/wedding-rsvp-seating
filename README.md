@@ -16,12 +16,12 @@ Use Node.js 22.13+, npm and Linux with `flock`, `curl` and GNU `timeout` for the
 
 ```sh
 npm ci
-cp .dev.vars.example .dev.vars
+npm run demo:setup
 npx wrangler d1 migrations apply site-creator-d1 --local
 npm run dev
 ```
 
-Open the URL printed by Vite. `DEMO_MODE=1` opens `/admin` and `/find-table` with fictional data. Use an isolated D1 database for demo mode. Run `npm run typecheck`, `npm run lint` and `npm test` for verification.
+Open the URL printed by Vite. The demo setup creates ephemeral credentials in ignored `.dev.vars`; use username `admin` and the generated `ADMIN_PASSWORD` for `/admin`, or `STAFF_PASSWORD` for `/find-table`. Fictional guests and seating are seeded on first access. Use an isolated D1 database. Run `npm run typecheck`, `npm run lint`, `npm test` and `npm run test:e2e` for verification. The setup command refuses to overwrite an existing `.dev.vars`.
 
 ## Configure your event
 

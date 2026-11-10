@@ -1,7 +1,8 @@
-# Copy to .dev.vars for local development. Never commit real secrets.
-DEMO_MODE=1
+# Use npm run demo:setup for a working isolated demo with ephemeral credentials.
+# For your own event, copy this file and configure independent real secrets.
+DEMO_MODE=0
 DEMO_AUTH=0
-ADMIN_PASSWORD=replace-with-a-long-random-password
-STAFF_PASSWORD=replace-with-an-independent-long-random-password
-INVITE_SHORT_TOKEN_SECRET=replace-with-32-random-bytes-in-base64url
-INVITE_TOKEN_SECRET=replace-with-an-independent-random-secret
+ADMIN_PASSWORD=
+STAFF_PASSWORD=
+INVITE_SHORT_TOKEN_SECRET=
+INVITE_TOKEN_SECRET=

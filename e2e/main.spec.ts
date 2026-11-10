@@ -1,8 +1,15 @@
 import { test, expect } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 
-const adminPassword = 'replace-with-a-long-random-password';
-const staffPassword = 'replace-with-an-independent-long-random-password';
+const demoConfig = readFileSync(new URL('../.dev.vars', import.meta.url), 'utf8');
+function demoPassword(name: string) {
+  const value = demoConfig.match(new RegExp(`^${name}=(.+)$`, 'm'))?.[1]?.trim();
+  if (!value) throw new Error(`Missing ${name}; run npm run demo:setup in an isolated checkout.`);
+  return value;
+}
+const adminPassword = demoPassword('ADMIN_PASSWORD');
+const staffPassword = demoPassword('STAFF_PASSWORD');
 
 test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', async ({ browser, baseURL }) => {
   const admin = await browser.newContext({ baseURL, httpCredentials: { username: 'admin', password: adminPassword } });

@@ -19,8 +19,7 @@ jobs:
       - run: npm test
       - name: Prepare isolated fictional demo
         run: |
-          cp .dev.vars.example .dev.vars
-          printf '\nDEMO_AUTH=1\n' >> .dev.vars
+          npm run demo:setup
           npx wrangler d1 migrations apply site-creator-d1 --local
       - run: npx playwright install --with-deps chromium --only-shell
       - run: npm run test:e2e
