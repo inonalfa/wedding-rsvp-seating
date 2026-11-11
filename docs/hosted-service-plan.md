@@ -1,6 +1,6 @@
 # Free hosted wedding service
 
-Status: design proposed in the first, documentation-only PR. No hosted resources exist as part of this change. The existing demo and self-hosted edition remain separate. Target: free public registration, Hebrew RTL, no SLA and explicit usage limits. Zero means no recurring hosting or vendor charges; incident response, provider account administration and legal review still take human time.
+Status: the [design PR](https://github.com/inonalfa/wedding-rsvp-seating/pull/6) is merged. The tenant foundation adds an isolated Worker entry point, a separate D1 schema, and owner-scoped data access tests. Public hosted flows are still pending. No hosted resources exist as part of this change. The existing demo and self-hosted edition remain separate. Target: free public registration, Hebrew RTL, no SLA and explicit usage limits. Zero means no recurring hosting or vendor charges; incident response, provider account administration and legal review still take human time.
 
 ## Runtime and tenant boundaries
 
