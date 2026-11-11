@@ -1,6 +1,6 @@
 # Free hosted wedding service
 
-Status: the [design PR](https://github.com/inonalfa/wedding-rsvp-seating/pull/6) is merged. The tenant foundation adds an isolated Worker entry point, a separate D1 schema, and owner-scoped data access tests. Public hosted flows are still pending. No hosted resources exist as part of this change. The existing demo and self-hosted edition remain separate. Target: free public registration, Hebrew RTL, no SLA and explicit usage limits. Zero means no recurring hosting or vendor charges; incident response, provider account administration and legal review still take human time.
+Status: the [design PR](https://github.com/inonalfa/wedding-rsvp-seating/pull/6) is merged. The tenant foundation adds an isolated Worker entry point, a separate D1 schema, and owner-scoped data access tests. The Google sign-in slice adds PKCE, verified ID tokens, opaque revocable sessions and a Hebrew sign-in screen. Event creation and guest flows are still pending. No hosted resources exist as part of this change. The existing demo and self-hosted edition remain separate. Target: free public registration, Hebrew RTL, no SLA and explicit usage limits. Zero means no recurring hosting or vendor charges; incident response, provider account administration and legal review still take human time.
 
 ## Runtime and tenant boundaries
 
@@ -19,7 +19,7 @@ Tests: create two owners and two events with overlapping child IDs. Probe cross-
 | [Cloudflare Access Free](https://www.cloudflare.com/plans/zero-trust-services/) | Free tier targets small teams; identity administration and seat limits make it a poor fit for unrestricted couple enrollment. | Optional for operator access, not a public signup dependency. |
 | Email magic links | Requires transactional delivery and sender reputation; a free monthly allowance is not a durable zero-cost guarantee. | Skip; no paid fallback or stored passwords. |
 
-Use authorization code, PKCE, one-time state and nonce, registered redirect, verified ID token signature/issuer/audience/expiry, and provider subject as identity. Store no refresh token. Use secure HttpOnly same-site cookies and revocable sessions; protect browser mutations by origin and session checks. Provide operator access with an explicit allowlist independent of tenant roles.
+Use authorization code, PKCE, one-time state and nonce, registered redirect, verified ID token signature/issuer/audience/expiry, and provider subject as identity. Store no refresh token. Use secure HttpOnly same-site cookies and revocable sessions; protect browser mutations by origin and session checks. Provide operator access with an explicit allowlist independent of tenant roles. For deployment, set HOSTED_ORIGIN to the exact HTTPS Worker origin; register its /auth/callback with Google, then configure GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and HOSTED_AUTH_SECRET via Wrangler secrets. Generate HOSTED_AUTH_SECRET from 32 cryptographically random bytes encoded as Base64URL. The login cookie expires after five minutes and the session after one day. The provider consumes each authorization code once.
 
 ## Free limits and capacity
 
