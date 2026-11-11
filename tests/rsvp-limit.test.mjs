@@ -24,3 +24,16 @@ test('real Worker rejects RSVP above invite maxGuests before saving', async () =
     assert.equal(fixture.sql.prepare('SELECT guest_count FROM rsvp_responses').get().guest_count, 0);
   } finally { fixture.sql.close(); }
 });
+
+test('demo RSVP stores only the signed fictional identity and rejects the open form', async () => {
+  const fixture = workerFixture({ DEMO_MODE: '1', MAKE_WEBHOOK_URL: undefined });
+  try {
+    const open = await fixture.request('/api/rsvp', { body: { fullName: 'Real Person', attendance: 'yes', guestCount: 1 } });
+    assert.equal(open.status, 400);
+    const signed = await fixture.request('/api/rsvp', { body: { fullName: 'Real Person', attendance: 'yes', guestCount: 1, message: 'real note', inviteToken: token() } });
+    assert.equal(signed.status, 201, await signed.clone().text());
+    const stored = fixture.sql.prepare('SELECT full_name, message FROM rsvp_responses').get();
+    assert.equal(stored.full_name, 'Demo Guest');
+    assert.equal(stored.message, '');
+  } finally { fixture.sql.close(); }
+});
