@@ -1,0 +1,70 @@
+# Free hosted wedding service
+
+Status: design proposed in the first, documentation-only PR. No hosted resources exist as part of this change. The existing demo and self-hosted edition remain separate. Target: free public registration, Hebrew RTL, no SLA and explicit usage limits. Zero means no recurring hosting or vendor charges; incident response, provider account administration and legal review still take human time.
+
+## Runtime and tenant boundaries
+
+Keep the existing vinext build, demo overlay and standalone D1 schema intact. Add a separately bundled Worker, migrations directory and Wrangler config for the hosted service. Use a free workers.dev hostname and a dedicated Workers Free account where practical to isolate account quotas. Never bind the demo database to the hosted Worker. Use first-party assets and a thin Worker API; parse CSV and render PDF in the browser, especially given the 10 ms Free CPU limit. Reuse portable validation and geometry where safe, never the single-event authorization, database state or implicit event config.
+
+An event is a tenant. URLs carry opaque event IDs; neither URL nor body establishes authority. Authenticate the couple, verify ownership or explicit membership, then pass a scoped event capability to the data layer. For public access, verify purpose-specific signed credentials before resolving the event, guest or staff session. Every tenant read, write, join, cascade, export and aggregate has an event_id boundary. Use composite keys and foreign keys such as (event_id, guest_id), parameterized SQL, leading event_id indexes, and transaction or revision checks for mutations. Event directory, identity/session lookup and scheduler discovery are explicitly global operations: scope listings to the authenticated identity and schedule lookups to indexed expiry; give the owner dashboard aggregate counts only. No arbitrary tenant SQL from routes. Disable caching on personalized responses, use no-referrer on invitation pages, and redact request paths and tokens from logs. Signed invites are scoped to event + guest + purpose + expiry + revocation version; revoke on deletion, rotation or cancellation. Public table search should use a separate event staff link and an exact guest code/name search returning only the table; never expose a guest directory or phone numbers.
+
+Tests: create two owners and two events with overlapping child IDs. Probe cross-event IDs on reads, CSV, mutations, RSVP, seating, search, export, deletion and webhook routes; require denial or no disclosure and verify the other tenant's records do not change. Test revoked and tampered capabilities, composite FK rejection, browser isolation and concurrent requests. Run legacy test suites unchanged.
+
+## Sign in without storing passwords
+
+| Option | Cost and constraints | Decision |
+| --- | --- | --- |
+| [Google OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect) | Basic sign-in scopes only; requires Google account, registered HTTPS callback, consent setup and possible Google verification. No mail delivery or billable Google APIs needed for sign-in. | Recommended for launch; no Google billing project or Sheets scope needed. |
+| [Passkeys / WebAuthn](https://www.w3.org/TR/webauthn-2/) | No delivery vendor; credentials are origin-bound. Registration and authentication challenges, multiple devices and reliable account recovery add work. | Revisit for users without Google. |
+| [Cloudflare Access Free](https://www.cloudflare.com/plans/zero-trust-services/) | Free tier targets small teams; identity administration and seat limits make it a poor fit for unrestricted couple enrollment. | Optional for operator access, not a public signup dependency. |
+| Email magic links | Requires transactional delivery and sender reputation; a free monthly allowance is not a durable zero-cost guarantee. | Skip; no paid fallback or stored passwords. |
+
+Use authorization code, PKCE, one-time state and nonce, registered redirect, verified ID token signature/issuer/audience/expiry, and provider subject as identity. Store no refresh token. Use secure HttpOnly same-site cookies and revocable sessions; protect browser mutations by origin and session checks. Provide operator access with an explicit allowlist independent of tenant roles.
+
+## Free limits and capacity
+
+Checked 2026-11-11 against provider documentation. Figures below are provider limits, not performance benchmarks.
+
+| Product | Official Free limit relevant here | Decision |
+| --- | --- | --- |
+| [Workers](https://developers.cloudflare.com/workers/platform/limits/) | 100,000 requests/day per account, 10 ms CPU, 128 MB, 50 subrequests per request, 5 Cron Triggers per account | One hosted Worker and one trigger. Free exhaustion returns an error; no plan upgrade. |
+| [D1 pricing](https://developers.cloudflare.com/d1/platform/pricing/) and [limits](https://developers.cloudflare.com/d1/platform/limits/) | 5M rows read/day, 100k written/day, 5 GB total, 500 MB per Free DB, 10 DBs/account, 50 queries per invocation | One DB. Include index maintenance in writes and count rows scanned, not response length. At daily exhaustion queries error; at storage exhaustion new inserts can fail. |
+| [R2 Standard](https://developers.cloudflare.com/r2/pricing/#free-tier) | 10 GB-month, 1M Class A and 10M Class B operations per month; usage can become billable | No bucket, uploads or R2 binding. |
+| [Workers KV](https://developers.cloudflare.com/kv/platform/pricing/) | 100k reads and 1k writes, deletes and lists each per day, 1 GB; Free limits reject excess operations | No binding. Do not use eventually consistent counters for admission or revocation. |
+| [Turnstile Free](https://developers.cloudflare.com/turnstile/plans/) | 20 widgets, 10 hostnames per widget, unlimited challenges | One widget for the hosted hostname. Verify on server. |
+
+Illustrative busy-day budget per active event: 1,000 dynamic Worker requests, 20,000 D1 row reads, 2,000 row writes, and 2 MB retained including indexes. With a 60% hosted operating budget (60k requests, 3M reads, 60k writes, 300 MB), those imply 60, 150, 30 and 150 events respectively, hence ~30 simultaneous busy events before the modeled write bottleneck. Start with **20 retained events total**, including expired events awaiting purge, to leave room for concurrent imports, deletes, rate limits and measurement overhead. This is a planning estimate; test synchronized imports and wedding-day traffic and capture D1 meta counters plus CPU before raising admission. Other Workers on the same account reduce available headroom.
+
+## Admission, abuse and retention
+
+- Initially one retained event per owner, 300 invitation rows per event, 500 total invited people, CSV 256 KiB with row/field length limits, and bounded paginated exports. Check quotas inside the same atomic admission or import transaction; do not rely on a read before a write. Index and batch within D1 parameter/query limits.
+- Rate-limit login start and callback (initially 10/min per client and a lower global admission budget), and RSVP writes (initially 5/min per invitation plus a broader per-client limit). Use edge limiter before D1 and Turnstile; [edge counters are approximate and per location](https://developers.cloudflare.com/workers/runtime-apis/bindings/rate-limit/), not billing controls. Apply strict server quotas to accepted state changes. Use hashed short-lived client keys and account for shared venue Wi-Fi. Reject invalid tokens early, suppress repeated identical writes, cap payloads, return 429 and avoid retries on authentication failure. Verify Turnstile [server-side](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/) including hostname, action, expiry and single use. Fail closed on verification errors.
+- Owner usage screen: Cloudflare account usage plus attributed D1 query metadata, quota percentages, UTC reset, storage and metric freshness. No personal data and no billing-write credential. Meter asynchronously or in coarse buckets so accounting cannot consume most writes. Warn at 50%; pause signups, imports and optional sync by 60%; reserve capacity for existing RSVPs, exports and deletion, then shed nonessential work. Missing or stale estimates must prevent new admissions. Provider-enforced Free limits are the billing backstop, not app counters: an attack can still exhaust availability before an in-app cutoff. Never automatically upgrade. No paid services, outbound paid credits or fail-open route mode. Use a dedicated account if the owner wants billing isolation from other projects.
+- Compute purge_at from the event's local date + 90 days in its recorded time zone; enforce expiry on access even if Cron is delayed. Show deletion date at creation, provide downloadable calendar reminder and show dashboard warnings 30 and 7 days before purge. An off-site notification needs an opt-in couple-owned sender; there is no platform email promise. Cron sweeps small indexed batches and retries idempotently; deletion revokes links immediately and removes invitations, guests, RSVPs, seating, jobs and integration credentials. Test time boundaries, missed triggers and retry after partial failure.
+
+## Integrations and privacy
+
+Core flow needs no integrations. Share signed links manually or via browser share/WhatsApp composer; no bulk platform sends, WhatsApp Business API or automatic messaging. Optional Make and Sheets connectors use a couple-owned account and a couple-controlled endpoint; no shared API credits, subscriptions or Google tokens. Warn that vendor usage may incur costs for that couple and require explicit opt-in. Require per-event signed messages with nonce/timestamp, redacted logs, allowlisted HTTPS hosts, blocked redirects, timeouts and a hard per-event operation cap. Validate tenant and credentials before any sync; authenticated retries must be bounded. Default to CSV export/import where a safe connector is not available.
+
+Collect names, headcounts and optional phone only when needed; no raw upload retention, third-party analytics, cross-tenant lookup or copied demo data. Provide export and delete with reauthentication; explain that downloaded copies and integrations are managed by the couple. Delete active data promptly; [D1 Time Travel](https://developers.cloudflare.com/d1/platform/limits/) retains point-in-time recovery for 7 days on Free. Prohibit restoring deleted data into serving state; require isolated recovery and reapplication of deletions before restoring traffic. Define backup expiry, logging, deletion verification and incident procedures before launch. **Requires legal review:** privacy notice, terms, controller/processor roles, guests' notice and rights, applicable Israeli and other privacy rules, subprocessors/locations and transfers, abuse handling and retention wording. Draft templates are not approved legal text.
+
+## PR sequence and release gate
+
+Each PR must pass typecheck, zero-warning lint, unit/integration and Playwright under CI verify. Merge only on green. Update this document with decisions, proof and remaining work at each step.
+
+| Step | Change | Proof |
+| --- | --- | --- |
+| 1 | This design only | Source/estimate review and existing verify |
+| 2 | Separate Worker and tenant schema/data layer | Migrated D1; composite FKs and two-tenant access tests |
+| 3 | Google sign-in, sessions and event onboarding | OAuth callback negative cases, cookie/CSRF tests, event quotas |
+| 4 | CSV, signed guest links and RSVP | File boundaries, scope/revocation, browser guest flow |
+| 5 | Seating, table lookup and PDF | Cross-tenant lookups, attendance and assignment validation, browser PDF |
+| 6 | Limits, Turnstile, expiry, export and purge | Concurrent admissions, abuse paths, retention and deletion tests |
+| 7 | Optional user-owned connections and owner usage | Authenticated/replayed sync, outbound boundaries, quota errors |
+| 8 | Hosted browser journey, privacy templates and deploy guide | One isolated local E2E from signup through PDF; legacy CI unchanged; configuration dry run |
+
+Keep the demo Worker, demo D1, its Wrangler config and DEMO_PATCH unchanged. Keep self-hosted instructions and commands working; no data import from either system into hosted. Prepare a single operator-run deploy entry point with Free-plan and isolated binding preflight, migrations and Worker deploy; provisioning/account setup and secret creation are explicit prerequisites. Document secret names only. No automatic hosted deploy from this repository.
+
+## Risks and owner decisions
+
+Confirm Google-only launch and recovery policy; accept a 20-event pilot and the 90-day purge policy; decide whether calendar + in-app notices suffice; obtain legal review and choose launch jurisdiction; pick who monitors quotas and responds to abuse. Shared provider outages, signup spikes, quota exhaustion, 10 ms CPU and legal review may delay launch. Hosted acceptance is gated on full end-to-end and tenant-isolation tests, zero-cost deployment evidence and green main. No production provisioning is part of development.
