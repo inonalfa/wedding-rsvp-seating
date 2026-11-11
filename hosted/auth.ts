@@ -1,8 +1,9 @@
+import type { UsageEnv } from "./usage";
 import { checkChallenge, widget, type AbuseEnv } from "./abuse";
 import { page, readForm } from "./http";
 import type { D1Database } from "@cloudflare/workers-types";
 
-export interface AuthEnv extends AbuseEnv {
+export interface AuthEnv extends AbuseEnv, UsageEnv {
   HOSTED_DB: D1Database;
   HOSTED_ORIGIN?: string;
   GOOGLE_CLIENT_ID?: string;

@@ -1,3 +1,4 @@
+import { hasHeadroom } from "./usage";
 import { connectorSettings } from "./connectors";
 import { dataPage, retentionNotice } from "./retention";
 import { signStaffLookup } from "./table-search";
@@ -40,6 +41,7 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
     if (!title || title.length > 100 || !purgeAt) {
       return page("לא ניתן ליצור אירוע", '<p>בחרו שם ותאריך בשנה הקרובה.</p><a href="/">חזרה</a>', 400);
     }
+    if (!await hasHeadroom(env.HOSTED_DB, now)) return page("יצירת אירועים מושהית כרגע", "", 503);
     const id = await store.createEvent(title, date, timeZone, purgeAt);
     if (!id) return page("לא ניתן ליצור אירוע כרגע", '<p>אפשר לשמור אירוע אחד לחשבון, בכפוף למקומות פנויים בשירות.</p><a href="/">חזרה</a>', 409);
     return redirectTo("/events/" + id);
@@ -52,6 +54,7 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
     }
     const event = store.event(importMatch[1]);
     if (!await event.details()) return page("האירוע לא נמצא", "", 404);
+    if (!await hasHeadroom(env.HOSTED_DB, now)) return page("ייבוא מושהה כרגע", "", 503);
     const form = await readForm(request, 258 * 1024);
     const file = form?.get("guests");
     if (!file || typeof file === "string" || file.size > 256 * 1024) return page("בחרו קובץ CSV בגודל עד 256 קילובייט", "", 400);

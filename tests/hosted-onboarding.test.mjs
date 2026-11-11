@@ -10,7 +10,7 @@ import { invitationKey, signInvitation } from "../hosted/invites.ts";
 test("a signed-in owner can create one event, and other owners cannot read it", async () => {
   const sql = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql", "0006_connectors.sql"]) {
+    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql", "0006_connectors.sql", "0007_usage.sql"]) {
       sql.exec(readFileSync(new URL("../hosted/migrations/" + name, import.meta.url), "utf8"));
     }
     sql.exec("PRAGMA foreign_keys=ON");
@@ -18,7 +18,7 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     const worker = createHostedWorker(async () => Response.json({ success: true, hostname: "weddings.example.test", action: "rsvp" }));
     const allow = { limit: async () => ({ success: true }) };
     const env = { TURNSTILE_SITE_KEY: "fixture-site", TURNSTILE_SECRET: "fixture-only",
-      LOGIN_LIMIT: allow, GUEST_LIMIT: allow, CLIENT_LIMIT: allow, HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
+      HOSTED_OPERATOR_SUB: "a", LOGIN_LIMIT: allow, GUEST_LIMIT: allow, CLIENT_LIMIT: allow, HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
       return { bind(...values) {
         return {
           async first() { return sql.prepare(query).get(...values) ?? null; },
@@ -52,6 +52,13 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     }), env);
     assert.equal((await get("/events/00000000-0000-0000-0000-000000000000")).status, 401);
     assert.equal((await create("https://another.example.test")).status, 403);
+    assert.equal((await create()).status, 503);
+    sql.prepare("INSERT INTO usage_snapshot VALUES(1, ?, 1000, 2000, 3000, 4000)").run(Date.now() - 1);
+    assert.equal((await get("/operator/usage", "b")).status, 404);
+    assert.match(await (await get("/operator/usage", "a")).text(), /3000 מתוך 100000/);
+    sql.exec("UPDATE usage_snapshot SET d1_writes=60000");
+    assert.equal((await create()).status, 503);
+    sql.exec("UPDATE usage_snapshot SET d1_writes=3000");
     const first = await create();
     assert.equal(first.status, 303, await first.clone().text());
     assert.equal((await create()).status, 409);

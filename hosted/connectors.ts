@@ -1,3 +1,4 @@
+import { hasHeadroom } from "./usage";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
 import { sessionOwner, type AuthEnv } from "./auth";
 
@@ -46,6 +47,7 @@ export async function connectorSnapshot(request: Request, env: AuthEnv, eventId:
   const deny = () => Response.json({ error: "Unauthorized" }, { status: 401, headers: privateHeaders });
   if (request.method !== "GET" || !token) return deny();
   const hash = await tokenHash(token);
+  if (!await hasHeadroom(env.HOSTED_DB, now)) return Response.json({ error: "Sync paused" }, { status: 503, headers: privateHeaders });
   const date = new Date(now).toISOString().slice(0, 10);
   const scope = "SELECT c.event_id FROM event_connectors c JOIN events e ON e.event_id=c.event_id WHERE c.event_id=? AND c.token_hash=? AND e.purge_at>?";
   const allowed = await env.HOSTED_DB.prepare(`UPDATE event_connectors
