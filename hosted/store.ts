@@ -1,3 +1,4 @@
+import type { ImportedGuest } from "./csv";
 import type { D1Database } from "@cloudflare/workers-types";
 
 type EventRecord = { event_id: string; title: string; event_date: string; time_zone: string; purge_at: number };
@@ -31,6 +32,20 @@ export function ownerStore(db: D1Database, ownerId: string, now = Date.now()) {
           return (await db.prepare(`SELECT guest_id, name, max_guests FROM guests
             WHERE event_id = (${activeEvent}) AND guest_id > ? ORDER BY guest_id LIMIT 100`)
             .bind(...scope, after).all<Guest>()).results;
+        },
+        async importGuests(guests: ImportedGuest[]) {
+          const statements = [];
+          for (let i = 0; i < guests.length; i += 30) {
+            const chunk = guests.slice(i, i + 30);
+            const rows = chunk.map(() => "(?, ?, ?)").join(", ");
+            statements.push(db.prepare(`WITH incoming(guest_id, name, max_guests) AS (VALUES ${rows})
+              INSERT INTO guests (event_id, guest_id, name, max_guests)
+              SELECT allowed.event_id, incoming.guest_id, incoming.name, incoming.max_guests
+              FROM incoming CROSS JOIN (${activeEvent}) AS allowed RETURNING guest_id`)
+              .bind(...chunk.flatMap(g => [crypto.randomUUID(), g.name, g.maxGuests]), ...scope));
+          }
+          const result = await db.batch(statements);
+          return result.reduce((count, item) => count + item.results.length, 0);
         },
         async rename(title: string) {
           const result = await db.prepare(

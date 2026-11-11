@@ -9,7 +9,7 @@ import { purgeTime } from "../hosted/events.ts";
 test("a signed-in owner can create one event, and other owners cannot read it", async () => {
   const sql = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0001_tenants.sql", "0002_sessions.sql"]) {
+    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql"]) {
       sql.exec(readFileSync(new URL("../hosted/migrations/" + name, import.meta.url), "utf8"));
     }
     const origin = "https://weddings.example.test";
@@ -21,6 +21,17 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
           async run() { return { meta: sql.prepare(query).run(...values) }; },
         };
       } };
+    }, async batch(statements) {
+      sql.exec("BEGIN");
+      try {
+        const results = [];
+        for (const statement of statements) results.push(await statement.all());
+        sql.exec("COMMIT");
+        return results;
+      } catch (error) {
+        sql.exec("ROLLBACK");
+        throw error;
+      }
     } } };
     for (const owner of ["a", "b"]) {
       sql.prepare("INSERT INTO accounts VALUES (?, ?, 0)").run(owner, owner);
@@ -44,10 +55,27 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     assert.equal(event.status, 200);
     assert.match(await event.text(), /&lt;script&gt;Fictional event&lt;\/script&gt;/);
     assert.equal((await get(path, "b")).status, 404);
+    const upload = (owner, csv) => {
+      const form = new FormData();
+      form.append("guests", new Blob([csv], { type: "text/csv" }), "fictional.csv");
+      return worker.fetch(new Request(origin + path + "/guests", {
+        method: "POST", headers: { origin, cookie: "__Host-hosted_session=" + owner.repeat(43) },
+        body: form,
+      }), env);
+    };
+    const csv = 'name,max_guests\r\n"נועה, לוי",2';
+    assert.equal((await upload("b", csv)).status, 404);
+    assert.equal((await upload("a", csv)).status, 303);
+    assert.match(await (await get(path, "a")).text(), /נועה, לוי/);
+    assert.equal((await upload("a", "wrong,header\nFictional,2")).status, 400);
+    const tooMany = "name,max_guests\n" + "Fictional,1\n".repeat(300);
+    assert.equal((await upload("a", tooMany)).status, 409);
+    assert.equal(sql.prepare("SELECT count(*) AS n FROM guests").get().n, 1);
+
     assert.doesNotMatch(await (await get("/", "b")).text(), /Fictional event/);
     for (let i = 0; i < 19; i++) {
       sql.prepare("INSERT INTO accounts VALUES (?, ?, 0)").run(String(i), String(i));
-      sql.prepare("INSERT INTO events VALUES (?, ?, 'Sample', '2027-06-10', 'Asia/Jerusalem', ?)").run(String(i), String(i), Date.now() + 60_000);
+      sql.prepare("INSERT INTO events(event_id, owner_id, title, event_date, time_zone, purge_at) VALUES (?, ?, 'Sample', '2027-06-10', 'Asia/Jerusalem', ?)").run(String(i), String(i), Date.now() + 60_000);
     }
     const hash = createHash("sha256").update("a".repeat(43)).digest("base64url");
     sql.prepare("UPDATE sessions SET account_id='b' WHERE token_hash=?").run(hash);

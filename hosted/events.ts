@@ -1,3 +1,4 @@
+import { parseGuestCsv } from "./csv";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
 import { ownerStore } from "./store";
 import type { AuthEnv } from "./auth";
@@ -39,13 +40,46 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
     return redirectTo("/events/" + id);
   }
 
+  const importMatch = url.pathname.match(/^\/events\/([0-9a-f-]{36})\/guests$/);
+  if (request.method === "POST" && importMatch) {
+    if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+      return page("הבקשה נחסמה", "", 403);
+    }
+    const event = store.event(importMatch[1]);
+    if (!await event.details()) return page("האירוע לא נמצא", "", 404);
+    const form = await readForm(request, 258 * 1024);
+    const file = form?.get("guests");
+    if (!file || typeof file === "string" || file.size > 256 * 1024) return page("בחרו קובץ CSV בגודל עד 256 קילובייט", "", 400);
+    let guests;
+    try {
+      const text = new TextDecoder("utf-8", { fatal: true }).decode(await file.arrayBuffer());
+      guests = parseGuestCsv(text);
+    } catch (error) {
+      return page("הייבוא לא הושלם", `<p>${escapeHtml(error instanceof Error ? error.message : "קובץ לא תקין")}</p>`, 400);
+    }
+    try {
+      if (await event.importGuests(guests) !== guests.length) return page("האירוע לא נמצא", "", 404);
+    } catch (error) {
+      if (String(error).includes("hosted guest quota exceeded")) {
+        return page("מכסת המוזמנים התמלאה", "<p>עד 300 הזמנות ו-500 מוזמנים לאירוע.</p>", 409);
+      }
+      throw error;
+    }
+    return redirectTo("/events/" + importMatch[1]);
+  }
+
   if (request.method !== "GET") return page("העמוד לא נמצא", "", 404);
   const match = url.pathname.match(/^\/events\/([0-9a-f-]{36})$/);
   if (match) {
-    const event = await store.event(match[1]).details();
+    const scoped = store.event(match[1]);
+    const event = await scoped.details();
     if (!event) return page("האירוע לא נמצא", "", 404);
     const purge = new Intl.DateTimeFormat("he-IL", { timeZone: event.time_zone, dateStyle: "long" }).format(event.purge_at);
-    return page(event.title, `<p>תאריך האירוע: <time>${escapeHtml(event.event_date)}</time></p><p>מחיקה מתוכננת: ${escapeHtml(purge)}</p><a href="/">כל האירועים</a>`);
+    const after = url.searchParams.get("after") ?? "";
+    const guests = await scoped.guests(after.length === 36 ? after : "");
+    const list = guests.map(guest => `<li>${escapeHtml(guest.name)} (${guest.max_guests})</li>`).join("");
+    const next = guests.length === 100 ? `<a href="?after=${encodeURIComponent(guests[99].guest_id)}">עוד מוזמנים</a>` : "";
+    return page(event.title, `<p>תאריך האירוע: <time>${escapeHtml(event.event_date)}</time></p><p>מחיקה מתוכננת: ${escapeHtml(purge)}</p><h2>מוזמנים</h2><ul>${list}</ul>${next}<form method="post" action="/events/${match[1]}/guests" enctype="multipart/form-data"><p>השתמשו בקובץ CSV עם הכותרת <code dir="ltr">name,max_guests</code>.</p><label>קובץ מוזמנים <input type="file" name="guests" accept=".csv,text/csv" required></label> <button>ייבוא מוזמנים</button></form><a href="/">כל האירועים</a>`);
   }
   if (url.pathname !== "/") return page("העמוד לא נמצא", "", 404);
   const events = await store.listEvents();
