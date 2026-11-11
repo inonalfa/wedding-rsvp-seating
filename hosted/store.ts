@@ -2,7 +2,7 @@ import type { ImportedGuest } from "./csv";
 import type { D1Database } from "@cloudflare/workers-types";
 
 type EventRecord = { event_id: string; title: string; event_date: string; time_zone: string; purge_at: number };
-type Guest = { guest_id: string; name: string; max_guests: number };
+type Guest = { guest_id: string; name: string; max_guests: number; attendance: "yes" | "no" | null; guest_count: number | null };
 
 /** Construct only after authentication; the owner ID comes from the verified session. */
 export function ownerStore(db: D1Database, ownerId: string, now = Date.now()) {
@@ -29,9 +29,15 @@ export function ownerStore(db: D1Database, ownerId: string, now = Date.now()) {
           ).bind(...scope).first<EventRecord>();
         },
         async guests(after = "") {
-          return (await db.prepare(`SELECT guest_id, name, max_guests FROM guests
-            WHERE event_id = (${activeEvent}) AND guest_id > ? ORDER BY guest_id LIMIT 100`)
+          return (await db.prepare(`SELECT g.guest_id, g.name, g.max_guests, r.attendance, r.guest_count FROM guests g
+            LEFT JOIN rsvps r ON g.event_id = r.event_id AND g.guest_id = r.guest_id
+            WHERE g.event_id = (${activeEvent}) AND g.guest_id > ? ORDER BY g.guest_id LIMIT 100`)
             .bind(...scope, after).all<Guest>()).results;
+        },
+        invitation(guestId: string) {
+          return db.prepare(`SELECT guest_id, invite_version FROM guests
+            WHERE event_id = (${activeEvent}) AND guest_id = ?`)
+            .bind(...scope, guestId).first<{ guest_id: string; invite_version: number }>();
         },
         async importGuests(guests: ImportedGuest[]) {
           const statements = [];
