@@ -106,6 +106,14 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     assert.match(await (await get(invite)).text(), /השולחן שלכם: 2/);
     assert.match(await (await get(seating + "/print", "a")).text(), /שולחן 2.*נועה, לוי/);
     assert.equal((await get(seating + "/print", "b")).status, 404);
+    assert.equal((await get(path + "/staff-link", "b")).status, 404);
+    const staff = (await (await get(path + "/staff-link", "a")).text()).match(/href="https:\/\/weddings\.example\.test(\/find-table\/[^"]+)"/)[1];
+    assert.equal((await get(staff)).status, 200);
+    assert.equal((await get(staff.slice(0, -1) + (staff.endsWith("0") ? "1" : "0"))).status, 404);
+    const lookup = await worker.fetch(new Request(origin + staff, {
+      method: "POST", headers: { origin }, body: new URLSearchParams({ name: "נועה, לוי" }),
+    }), env);
+    assert.match(await lookup.text(), /role="status">שולחן 2</);
 
     assert.equal((await answer(2, "no")).status, 303);
     assert.equal(sql.prepare("SELECT guest_count FROM rsvps").get().guest_count, 0);
