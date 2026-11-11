@@ -1,6 +1,8 @@
+import { checkChallenge, widget, type AbuseEnv } from "./abuse";
+import { page, readForm } from "./http";
 import type { D1Database } from "@cloudflare/workers-types";
 
-export interface AuthEnv {
+export interface AuthEnv extends AbuseEnv {
   HOSTED_DB: D1Database;
   HOSTED_ORIGIN?: string;
   GOOGLE_CLIENT_ID?: string;
@@ -106,7 +108,16 @@ export async function authRoute(request: Request, env: AuthEnv, now = Date.now()
     }
     return redirect("/", [cookie(sessionCookie, "", 0)]);
   }
-  if (request.method === "GET" && url.pathname === "/auth/login") {
+  if (url.pathname === "/auth/login" && request.method === "GET") {
+    const challenge = widget(env, "login");
+    if (!challenge) return page("ההתחברות אינה זמינה כרגע", "", 503);
+    return page("התחברות לשירות", `<form method="post">${challenge}<button>המשך עם Google</button></form>`, 200, true);
+  }
+  if (request.method === "POST" && url.pathname === "/auth/login") {
+    if (request.headers.get("origin") !== origin ||
+        !await checkChallenge(env, await readForm(request, 4096), "login", fetcher)) {
+      return page("האימות נכשל", '<a href="/auth/login">נסו שוב</a>', 403);
+    }
     const login = { state: random(), nonce: random(), verifier: random(), expires: now + 300_000 };
     const params = new URLSearchParams({
       client_id: client, redirect_uri: callback, response_type: "code", scope: "openid",

@@ -3,6 +3,8 @@ import test from "node:test";
 import { authRoute, verifyGoogleIdToken } from "../hosted/auth.ts";
 
 const env = {
+  TURNSTILE_SITE_KEY: "fixture-site",
+  TURNSTILE_SECRET: "fixture-only",
   HOSTED_ORIGIN: "https://weddings.example.test",
   GOOGLE_CLIENT_ID: "fictional-client",
   GOOGLE_CLIENT_SECRET: "fictional-secret",
@@ -11,7 +13,11 @@ const env = {
 
 test("hosted OAuth requests use PKCE and reject callbacks before exchange when state is wrong or expired", async () => {
   const origin = env.HOSTED_ORIGIN;
-  const start = await authRoute(new Request(origin + "/auth/login"), env, 1000);
+  const login = () => new Request(origin + "/auth/login", { method: "POST",
+    headers: { origin }, body: new URLSearchParams({ "cf-turnstile-response": "fictional" }) });
+  const invalid = await authRoute(login(), env, 1000, async () => Response.json({ success: true, hostname: "wrong.example.test", action: "login" }));
+  assert.equal(invalid.status, 403);
+  const start = await authRoute(login(), env, 1000, async () => Response.json({ success: true, hostname: "weddings.example.test", action: "login" }));
   const url = new URL(start.headers.get("location"));
   const cookie = start.headers.get("set-cookie");
   assert.match(cookie, /^__Host-hosted_login=.+; Secure; HttpOnly; SameSite=Lax$/);

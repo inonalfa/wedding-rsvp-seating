@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import worker from "../hosted/worker.ts";
+import { createHostedWorker } from "../hosted/worker.ts";
 import { purgeTime } from "../hosted/events.ts";
 import { invitationKey, signInvitation } from "../hosted/invites.ts";
 
@@ -15,7 +15,10 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     }
     sql.exec("PRAGMA foreign_keys=ON");
     const origin = "https://weddings.example.test";
-    const env = { HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
+    const worker = createHostedWorker(async () => Response.json({ success: true, hostname: "weddings.example.test", action: "rsvp" }));
+    const allow = { limit: async () => ({ success: true }) };
+    const env = { TURNSTILE_SITE_KEY: "fixture-site", TURNSTILE_SECRET: "fixture-only",
+      LOGIN_LIMIT: allow, GUEST_LIMIT: allow, CLIENT_LIMIT: allow, HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
       return { bind(...values) {
         return {
           async first() { return sql.prepare(query).get(...values) ?? null; },
@@ -83,10 +86,17 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     const expired = await signInvitation(key, path.split("/").pop(), guest.guest_id, 1, Date.now() - 31 * 86400_000);
     assert.equal((await get("/invite/" + expired)).status, 404);
     assert.equal((await get(invite.replace(/(\.[^.])/, (_, start) => "." + (start[1] === "a" ? "b" : "a")))).status, 404);
-    const answer = (count, attendance = "yes") => worker.fetch(new Request(origin + invite, {
+    const answer = (count, attendance = "yes", challenge = "fictional") => worker.fetch(new Request(origin + invite, {
       method: "POST", headers: { origin },
-      body: new URLSearchParams({ attendance, guest_count: String(count), name: "Ignored" }),
+      body: new URLSearchParams({ attendance, guest_count: String(count), name: "Ignored", "cf-turnstile-response": challenge }),
     }), env);
+    assert.equal((await answer(2, "yes", "")).status, 403);
+    env.GUEST_LIMIT = { limit: async () => ({ success: false }) };
+    assert.equal((await answer(2)).status, 429);
+    env.GUEST_LIMIT = allow;
+    env.LOGIN_LIMIT = { limit: async () => ({ success: false }) };
+    assert.equal((await get("/auth/login")).status, 429);
+    env.LOGIN_LIMIT = allow;
     assert.equal((await answer(3)).status, 400);
     assert.equal((await answer(2)).status, 303);
     assert.equal((await answer(2)).status, 303);
