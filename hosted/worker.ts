@@ -1,3 +1,4 @@
+import { refreshUsage, usagePage } from "./usage";
 import { connectorSnapshot } from "./connectors";
 import { limited } from "./abuse";
 import { authRoute, sessionOwner, type AuthEnv } from "./auth";
@@ -11,7 +12,9 @@ import { purgeExpired } from "./retention";
 export function createHostedWorker(fetcher: typeof fetch = fetch) {
   return {
     async scheduled(_controller: unknown, env: AuthEnv) {
-      await purgeExpired(env.HOSTED_DB, Date.now());
+      const now = Date.now();
+      await purgeExpired(env.HOSTED_DB, now);
+      await refreshUsage(env, now, fetcher);
     },
     async fetch(request: Request, env: AuthEnv): Promise<Response> {
       const url = new URL(request.url);
@@ -41,6 +44,10 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
       if (url.pathname.startsWith("/auth/")) {
         const blocked = await limited(env.LOGIN_LIMIT, "login:" + await clientKey());
         return blocked ?? authRoute(request, env, Date.now(), fetcher);
+      }
+      if (url.pathname === "/operator/usage" && request.method === "GET") {
+        const owner = await sessionOwner(request, env);
+        return owner ? usagePage(env, owner, Date.now()) : page("העמוד לא נמצא", "", 404);
       }
       if (url.pathname === "/" || url.pathname === "/events" || url.pathname.startsWith("/events/")) {
         const owner = await sessionOwner(request, env);
