@@ -4,6 +4,7 @@
   "compatibility_date": "2026-10-20",
   "workers_dev": true,
   "preview_urls": false,
+  "triggers": { "crons": ["7 * * * *"] },
   "d1_databases": [
     {
       "binding": "HOSTED_DB",

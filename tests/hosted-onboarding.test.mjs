@@ -10,9 +10,10 @@ import { invitationKey, signInvitation } from "../hosted/invites.ts";
 test("a signed-in owner can create one event, and other owners cannot read it", async () => {
   const sql = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql"]) {
+    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql"]) {
       sql.exec(readFileSync(new URL("../hosted/migrations/" + name, import.meta.url), "utf8"));
     }
+    sql.exec("PRAGMA foreign_keys=ON");
     const origin = "https://weddings.example.test";
     const env = { HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
       return { bind(...values) {
@@ -37,7 +38,7 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     for (const owner of ["a", "b"]) {
       sql.prepare("INSERT INTO accounts VALUES (?, ?, 0)").run(owner, owner);
       const hash = createHash("sha256").update(owner.repeat(43)).digest("base64url");
-      sql.prepare("INSERT INTO sessions VALUES (?, ?, ?)").run(hash, owner, Date.now() + 60_000);
+      sql.prepare("INSERT INTO sessions VALUES (?, ?, ?)").run(hash, owner, Date.now() + 86400_000);
     }
     const get = (path, owner = "") => worker.fetch(new Request(origin + path, {
       headers: { cookie: "__Host-hosted_session=" + owner.repeat(43) },
@@ -131,6 +132,26 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     sql.prepare("UPDATE sessions SET account_id='b' WHERE token_hash=?").run(hash);
     assert.equal((await create()).status, 409);
     assert.equal(sql.prepare("SELECT count(*) AS n FROM events").get().n, 20);
+    sql.prepare("UPDATE sessions SET account_id='a' WHERE token_hash=?").run(hash);
+    const data = (owner, action, confirm = "") => worker.fetch(new Request(origin + path + "/data", {
+      method: "POST", headers: { origin, cookie: "__Host-hosted_session=" + owner.repeat(43) },
+      body: new URLSearchParams({ action, confirm }),
+    }), env);
+    assert.equal((await data("b", "export")).status, 404);
+    assert.equal((await data("a", "export")).status, 200);
+    assert.equal((await (await data("a", "export")).json()).guests[0].name, "נועה, לוי");
+    assert.match(await (await get(path + "/reminder", "a")).text(), /BEGIN:VALARM/);
+    assert.equal((await data("a", "delete")).status, 400);
+    assert.equal((await data("a", "delete", "yes")).status, 303);
+    assert.equal(sql.prepare("SELECT count(*) AS n FROM guests").get().n, 0);
+    assert.equal(sql.prepare("SELECT count(*) AS n FROM seating_assignments").get().n, 0);
+    assert.equal((await get(staff)).status, 404);
+    sql.exec("UPDATE events SET purge_at=0 WHERE event_id IN ('0','1','2')");
+    await worker.scheduled(null, env);
+    assert.equal(sql.prepare("SELECT count(*) AS n FROM events WHERE purge_at=0").get().n, 1);
+    await worker.scheduled(null, env);
+    await worker.scheduled(null, env);
+    assert.equal(sql.prepare("SELECT count(*) AS n FROM events WHERE purge_at=0").get().n, 0);
   } finally {
     sql.close();
   }

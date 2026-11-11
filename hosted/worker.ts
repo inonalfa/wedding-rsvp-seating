@@ -4,8 +4,12 @@ import { ownerPage } from "./events";
 import { page } from "./http";
 import { guestInvitation } from "./invites";
 import { tableSearch } from "./table-search";
+import { purgeExpired } from "./retention";
 
 const worker = {
+  async scheduled(_controller: unknown, env: AuthEnv) {
+    await purgeExpired(env.HOSTED_DB, Date.now());
+  },
   async fetch(request: Request, env: AuthEnv): Promise<Response> {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") {
