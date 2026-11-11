@@ -21,13 +21,18 @@ async function challenge(page: Page) {
 
 async function signIn(page: Page, subject: string) {
   await challenge(page);
-  await page.route("https://accounts.google.com/o/oauth2/v2/auth?**", route => {
-    const auth = new URL(route.request().url());
+  await page.route(origin + "/auth/login", async route => {
+    if (route.request().method() !== "POST") return route.continue();
+    const response = await route.fetch({ maxRedirects: 0 });
+    expect(response.status()).toBe(303);
+    const headers = response.headers();
+    const auth = new URL(headers.location);
+    expect(auth.origin + auth.pathname).toBe("https://accounts.google.com/o/oauth2/v2/auth");
     expect(auth.searchParams.get("code_challenge_method")).toBe("S256");
     const callback = new URL(auth.searchParams.get("redirect_uri")!);
     callback.searchParams.set("state", auth.searchParams.get("state")!);
     callback.searchParams.set("code", subject + ":" + auth.searchParams.get("nonce"));
-    return route.fulfill({ status: 302, headers: { Location: callback.href } });
+    await route.fulfill({ response, headers: { ...headers, location: callback.href } });
   });
   await page.goto(origin);
   await page.getByRole("link", { name: "התחברות באמצעות Google" }).click();
