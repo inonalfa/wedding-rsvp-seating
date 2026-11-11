@@ -121,7 +121,8 @@ async function decodeShortInviteToken(token: string, secret: string): Promise<In
     const inviteId = decoder.decode(payload.slice(headerLength, headerLength + inviteIdLength)).trim();
     const firstName = decoder.decode(payload.slice(headerLength + inviteIdLength)).trim();
     if (
-      !eventConfig.inviteIdPrefixes.some(prefix => inviteId.startsWith(`${prefix}-`) && /^[A-Za-z0-9_-]{6,32}$/.test(inviteId.slice(prefix.length + 1))) ||
+      !(eventConfig.inviteIdPrefixes.some(prefix => inviteId.startsWith(`${prefix}-`) && /^[A-Za-z0-9_-]{6,32}$/.test(inviteId.slice(prefix.length + 1))) ||
+        (getWeddingRuntimeConfig().demoMode && /^demo-[ab]-[1-3]$/.test(inviteId))) ||
       maxGuests < 0 ||
       maxGuests > 20 ||
       !firstName ||
