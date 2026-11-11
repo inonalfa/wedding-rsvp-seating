@@ -1,3 +1,4 @@
+import { seatingPage } from "./seating";
 import { invitationKey, signInvitation } from "./invites";
 import { parseGuestCsv } from "./csv";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
@@ -69,6 +70,13 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
     return redirectTo("/events/" + importMatch[1]);
   }
 
+  const seatingMatch = url.pathname.match(/^\/events\/([0-9a-f-]{36})\/seating(\/print)?$/);
+  if (seatingMatch) {
+    const event = await store.event(seatingMatch[1]).details();
+    if (!event) return page("האירוע לא נמצא", "", 404);
+    return seatingPage(request, env.HOSTED_DB, env.HOSTED_ORIGIN, ownerId, event.event_id, event.title, !!seatingMatch[2], now);
+  }
+
   if (request.method !== "GET") return page("העמוד לא נמצא", "", 404);
   const inviteMatch = url.pathname.match(/^\/events\/([0-9a-f-]{36})\/invites\/([0-9a-f-]{36})$/);
   if (inviteMatch) {
@@ -93,7 +101,7 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
     const guests = await scoped.guests(after.length === 36 ? after : "");
     const list = guests.map(guest => `<li>${escapeHtml(guest.name)} (${guest.max_guests}) · ${guest.attendance === "yes" ? `אישרו: ${guest.guest_count}` : guest.attendance === "no" ? "לא מגיעים" : "ממתינים לתשובה"}${env.HOSTED_INVITE_SECRET ? ` <a href="/events/${match[1]}/invites/${encodeURIComponent(guest.guest_id)}">קישור להזמנה</a>` : ""}</li>`).join("");
     const next = guests.length === 100 ? `<a href="?after=${encodeURIComponent(guests[99].guest_id)}">עוד מוזמנים</a>` : "";
-    return page(event.title, `<p>תאריך האירוע: <time>${escapeHtml(event.event_date)}</time></p><p>מחיקה מתוכננת: ${escapeHtml(purge)}</p><h2>מוזמנים</h2><ul>${list}</ul>${next}<form method="post" action="/events/${match[1]}/guests" enctype="multipart/form-data"><p>השתמשו בקובץ CSV עם הכותרת <code dir="ltr">name,max_guests</code>.</p><label>קובץ מוזמנים <input type="file" name="guests" accept=".csv,text/csv" required></label> <button>ייבוא מוזמנים</button></form><a href="/">כל האירועים</a>`);
+    return page(event.title, `<p>תאריך האירוע: <time>${escapeHtml(event.event_date)}</time></p><p>מחיקה מתוכננת: ${escapeHtml(purge)}</p><p><a href="/events/${match[1]}/seating">סידורי הושבה</a></p><h2>מוזמנים</h2><ul>${list}</ul>${next}<form method="post" action="/events/${match[1]}/guests" enctype="multipart/form-data"><p>השתמשו בקובץ CSV עם הכותרת <code dir="ltr">name,max_guests</code>.</p><label>קובץ מוזמנים <input type="file" name="guests" accept=".csv,text/csv" required></label> <button>ייבוא מוזמנים</button></form><a href="/">כל האירועים</a>`);
   }
   if (url.pathname !== "/") return page("העמוד לא נמצא", "", 404);
   const events = await store.listEvents();

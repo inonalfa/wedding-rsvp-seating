@@ -92,6 +92,21 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     assert.equal(sql.prepare("SELECT count(*) AS n FROM rsvps").get().n, 1);
     assert.equal(sql.prepare("SELECT guest_count FROM rsvps").get().guest_count, 2);
     assert.match(await (await get(path, "a")).text(), /אישרו: 2/);
+    const seating = path + "/seating";
+    const seat = (owner, values) => worker.fetch(new Request(origin + seating, {
+      method: "POST", headers: { origin, cookie: "__Host-hosted_session=" + owner.repeat(43) },
+      body: new URLSearchParams(values),
+    }), env);
+    assert.equal((await seat("b", { action: "table", number: 1, capacity: 10 })).status, 404);
+    assert.equal((await seat("a", { action: "table", number: 1, capacity: 1 })).status, 303);
+    assert.equal((await seat("a", { action: "table", number: 2, capacity: 2 })).status, 303);
+    const table = number => sql.prepare("SELECT table_id FROM seating_tables WHERE table_number=?").get(number).table_id;
+    assert.equal((await seat("a", { action: "assign", guest: guest.guest_id, table: table(1) })).status, 409);
+    assert.equal((await seat("a", { action: "assign", guest: guest.guest_id, table: table(2) })).status, 303);
+    assert.match(await (await get(invite)).text(), /השולחן שלכם: 2/);
+    assert.match(await (await get(seating + "/print", "a")).text(), /שולחן 2.*נועה, לוי/);
+    assert.equal((await get(seating + "/print", "b")).status, 404);
+
     assert.equal((await answer(2, "no")).status, 303);
     assert.equal(sql.prepare("SELECT guest_count FROM rsvps").get().guest_count, 0);
     sql.exec("UPDATE guests SET invite_version = invite_version + 1");

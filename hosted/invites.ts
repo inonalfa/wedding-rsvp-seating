@@ -32,7 +32,7 @@ export async function checkInvitation(key: CryptoKey, token: string, now: number
 }
 
 type InviteEnv = { HOSTED_DB: D1Database; HOSTED_ORIGIN?: string; HOSTED_INVITE_SECRET?: string };
-type InviteGuest = { title: string; event_date: string; name: string; max_guests: number };
+type InviteGuest = { title: string; event_date: string; name: string; max_guests: number; table_number: number | null };
 const active = `g.event_id = ? AND g.guest_id = ? AND g.invite_version = ? AND e.purge_at > ?`;
 
 export async function guestInvitation(request: Request, env: InviteEnv, token: string, now = Date.now()) {
@@ -42,12 +42,17 @@ export async function guestInvitation(request: Request, env: InviteEnv, token: s
   if (!verified) return missing();
   const scope = [verified.eventId, verified.guestId, verified.version, now];
   if (request.method === "GET") {
-    const guest = await env.HOSTED_DB.prepare(`SELECT e.title, e.event_date, g.name, g.max_guests
-      FROM guests g JOIN events e ON e.event_id = g.event_id WHERE ${active}`).bind(...scope).first<InviteGuest>();
+    const guest = await env.HOSTED_DB.prepare(`SELECT e.title, e.event_date, g.name, g.max_guests, t.table_number
+      FROM guests g JOIN events e ON e.event_id = g.event_id
+      LEFT JOIN rsvps r ON r.event_id=g.event_id AND r.guest_id=g.guest_id
+      LEFT JOIN seating_assignments a ON a.event_id=g.event_id AND a.guest_id=g.guest_id AND r.attendance='yes'
+      LEFT JOIN seating_tables t ON t.event_id=a.event_id AND t.table_id=a.table_id
+      WHERE ${active}`).bind(...scope).first<InviteGuest>();
     if (!guest) return missing();
     const counts = Array.from({ length: guest.max_guests }, (_, i) => `<option>${i + 1}</option>`).join("");
     const saved = new URL(request.url).searchParams.get("saved") === "1" ? '<p role="status">התשובה נשמרה. אפשר לעדכן אותה כאן.</p>' : "";
-    return page(guest.title, `${saved}<p>שלום ${escapeHtml(guest.name)}, מוזמנים לחגוג איתנו ב-${escapeHtml(guest.event_date)}.</p><form method="post" action="/invite/${token}"><label>כמות מגיעים <select name="guest_count">${counts}</select></label> <button name="attendance" value="yes">מאשרים הגעה</button> <button name="attendance" value="no">לא מגיעים</button></form>`);
+    const table = guest.table_number ? `<p>השולחן שלכם: ${guest.table_number}</p>` : "";
+    return page(guest.title, `${saved}${table}<p>שלום ${escapeHtml(guest.name)}, מוזמנים לחגוג איתנו ב-${escapeHtml(guest.event_date)}.</p><form method="post" action="/invite/${token}"><label>כמות מגיעים <select name="guest_count">${counts}</select></label> <button name="attendance" value="yes">מאשרים הגעה</button> <button name="attendance" value="no">לא מגיעים</button></form>`);
   }
   if (request.method !== "POST") return missing();
   if (!env.HOSTED_ORIGIN || new URL(request.url).origin !== env.HOSTED_ORIGIN ||
