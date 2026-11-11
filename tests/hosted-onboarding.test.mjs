@@ -18,7 +18,7 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     const worker = createHostedWorker(async () => Response.json({ success: true, hostname: "weddings.example.test", action: "rsvp" }));
     const allow = { limit: async () => ({ success: true }) };
     const env = { TURNSTILE_SITE_KEY: "fixture-site", TURNSTILE_SECRET: "fixture-only",
-      HOSTED_OPERATOR_SUB: "a", LOGIN_LIMIT: allow, GUEST_LIMIT: allow, CLIENT_LIMIT: allow, HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
+      HOSTED_OPERATOR_SUB: "a", LOGIN_LIMIT: allow, OWNER_LIMIT: allow, RECOVERY_LIMIT: allow, GUEST_LIMIT: allow, CLIENT_LIMIT: allow, HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
       return { bind(...values) {
         return {
           async first() { return sql.prepare(query).get(...values) ?? null; },

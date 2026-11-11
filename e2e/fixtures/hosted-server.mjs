@@ -37,7 +37,7 @@ const env = {
   HOSTED_DB, HOSTED_ORIGIN: origin, GOOGLE_CLIENT_ID: "fictional-client", GOOGLE_CLIENT_SECRET: "fictional",
   HOSTED_AUTH_SECRET: Buffer.alloc(32, 1).toString("base64url"), HOSTED_INVITE_SECRET: Buffer.alloc(32, 2).toString("base64url"),
   TURNSTILE_SITE_KEY: "fictional-site", TURNSTILE_SECRET: "fictional-secret",
-  LOGIN_LIMIT: rate, CLIENT_LIMIT: rate, GUEST_LIMIT: rate,
+  LOGIN_LIMIT: rate, OWNER_LIMIT: rate, RECOVERY_LIMIT: rate, CLIENT_LIMIT: rate, GUEST_LIMIT: rate,
 };
 const algorithm = { name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: Uint8Array.of(1, 0, 1), hash: "SHA-256" };
 const keys = await crypto.subtle.generateKey(algorithm, true, ["sign", "verify"]);

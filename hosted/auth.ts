@@ -16,6 +16,8 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 const sessionCookie = "__Host-hosted_session";
 const loginCookie = "__Host-hosted_login";
+const sessionAgeMs = 86_400_000;
+const sessionCap = 5;
 const googleIssuer = "https://accounts.google.com";
 
 function encode(bytes: Uint8Array) {
@@ -88,18 +90,33 @@ export async function verifyGoogleIdToken(token: string, client: string, nonce: 
   return claims.sub as string;
 }
 
-export async function sessionOwner(request: Request, env: AuthEnv, now = Date.now(), maxAgeMs = 86400_000) {
+export async function sessionOwner(request: Request, env: AuthEnv, now = Date.now(), maxAgeMs = sessionAgeMs) {
   const token = getCookie(request, sessionCookie);
   if (!token || !/^[\w-]{43}$/.test(token)) return null;
   return (await env.HOSTED_DB.prepare("SELECT account_id FROM sessions WHERE token_hash = ? AND expires_at > ?")
-    .bind(await hash(token), now + 86400_000 - maxAgeMs).first<{ account_id: string }>())?.account_id ?? null;
+    .bind(await hash(token), now + sessionAgeMs - maxAgeMs).first<{ account_id: string }>())?.account_id ?? null;
+}
+
+/** D1 executes the batch atomically, so simultaneous callbacks cannot exceed the cap. */
+export async function recordSession(db: D1Database, subject: string, tokenHash: string, now: number) {
+  await db.batch([
+    db.prepare("INSERT INTO accounts VALUES (?, ?, ?) ON CONFLICT(provider_subject) DO NOTHING")
+      .bind(crypto.randomUUID(), subject, now),
+    db.prepare("INSERT INTO sessions SELECT ?, id, ? FROM accounts WHERE provider_subject = ?")
+      .bind(tokenHash, now + sessionAgeMs, subject),
+    db.prepare(`DELETE FROM sessions WHERE token_hash IN (
+      SELECT s.token_hash FROM sessions s JOIN accounts a ON a.id=s.account_id
+      WHERE a.provider_subject=?
+      ORDER BY (s.token_hash=?) DESC, s.expires_at DESC, s.rowid DESC
+      LIMIT -1 OFFSET ?
+    )`).bind(subject, tokenHash, sessionCap),
+  ]);
 }
 
 export async function authRoute(request: Request, env: AuthEnv, now = Date.now(), fetcher: typeof fetch = fetch) {
   const url = new URL(request.url);
   const { HOSTED_ORIGIN: origin, GOOGLE_CLIENT_ID: client, GOOGLE_CLIENT_SECRET: clientSecret, HOSTED_AUTH_SECRET: secret } = env;
-  const callback = origin + "/auth/callback";
-  if (!origin || url.origin !== origin || !client || !clientSecret || !secret) {
+  if (!origin || url.origin !== origin) {
     return new Response("Sign-in unavailable", { status: 503 });
   }
   if (request.method === "POST" && url.pathname === "/auth/logout" && request.headers.get("origin") === origin) {
@@ -109,6 +126,8 @@ export async function authRoute(request: Request, env: AuthEnv, now = Date.now()
     }
     return redirect("/", [cookie(sessionCookie, "", 0)]);
   }
+  if (!client || !clientSecret || !secret) return new Response("Sign-in unavailable", { status: 503 });
+  const callback = origin + "/auth/callback";
   if (url.pathname === "/auth/login" && request.method === "GET") {
     const challenge = widget(env, "login");
     if (!challenge) return page("ההתחברות אינה זמינה כרגע", "", 503);
@@ -141,11 +160,8 @@ export async function authRoute(request: Request, env: AuthEnv, now = Date.now()
     if (!exchange.ok) throw new Error("Token exchange failed");
     const { id_token: idToken } = await exchange.json() as { id_token: string };
     const subject = await verifyGoogleIdToken(idToken, client, login.nonce, now, fetcher);
-    await env.HOSTED_DB.prepare("INSERT INTO accounts VALUES (?, ?, ?) ON CONFLICT(provider_subject) DO NOTHING")
-      .bind(crypto.randomUUID(), subject, now).run();
     const token = random();
-    await env.HOSTED_DB.prepare(`INSERT INTO sessions SELECT ?, id, ? FROM accounts WHERE provider_subject = ?`)
-      .bind(await hash(token), now + 86400_000, subject).run();
+    await recordSession(env.HOSTED_DB, subject, await hash(token), now);
     return redirect("/", [clear, cookie(sessionCookie, token, 86400)]);
   } catch {
     return redirect("/?signin=failed", [clear]);

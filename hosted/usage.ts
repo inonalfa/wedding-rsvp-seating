@@ -49,20 +49,23 @@ async function collectUsage(env: UsageEnv, now: number, fetcher: typeof fetch) {
     };
     const accounts = payload.data?.viewer?.accounts;
     const account = Array.isArray(accounts) && accounts.length === 1 ? accounts[0] : null;
-    if (payload.errors?.length || !account || !Array.isArray(account.workersInvocationsAdaptive) || !Array.isArray(account.d1QueriesAdaptiveGroups)) return false;
+    if (payload.errors !== undefined && (!Array.isArray(payload.errors) || payload.errors.length !== 0)) return false;
+    if (!account || !Array.isArray(account.workersInvocationsAdaptive) || !Array.isArray(account.d1QueriesAdaptiveGroups)) return false;
     if (account.workersInvocationsAdaptive.length !== 1 || account.d1QueriesAdaptiveGroups.length !== 1) return false;
     const workers = account.workersInvocationsAdaptive[0]?.sum?.requests;
     const d1 = account.d1QueriesAdaptiveGroups[0]?.sum;
+    const values = [workers, d1?.rowsRead, d1?.rowsWritten];
+    const validCount = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+    if (!values.every(validCount)) return false;
     const result = await env.HOSTED_DB.prepare("SELECT id FROM usage_snapshot WHERE id=1").bind().run();
-    const values = [workers, d1?.rowsRead, d1?.rowsWritten, result.meta.size_after];
-    if (values.some(value => typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)) return false;
+    if (!validCount(result.meta.size_after)) return false;
     await env.HOSTED_DB.prepare(`INSERT INTO usage_snapshot
       (id, recorded_at, worker_requests, d1_reads, d1_writes, hosted_bytes, last_attempt_at, last_attempt_ok)
       VALUES (1, ?, ?, ?, ?, ?, ?, 1)
       ON CONFLICT(id) DO UPDATE SET recorded_at=excluded.recorded_at, worker_requests=excluded.worker_requests,
       d1_reads=excluded.d1_reads, d1_writes=excluded.d1_writes, hosted_bytes=excluded.hosted_bytes,
         last_attempt_at=excluded.last_attempt_at, last_attempt_ok=1
-      WHERE excluded.last_attempt_at >= COALESCE(usage_snapshot.last_attempt_at, usage_snapshot.recorded_at)`).bind(now, ...values, now).run();
+      WHERE excluded.last_attempt_at >= COALESCE(usage_snapshot.last_attempt_at, usage_snapshot.recorded_at)`).bind(now, ...values, result.meta.size_after, now).run();
     return true;
   } catch {
     return false;

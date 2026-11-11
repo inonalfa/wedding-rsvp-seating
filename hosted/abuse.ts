@@ -6,6 +6,8 @@ export type AbuseEnv = {
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET?: string;
   LOGIN_LIMIT?: RateLimiter;
+  OWNER_LIMIT?: RateLimiter;
+  RECOVERY_LIMIT?: RateLimiter;
   GUEST_LIMIT?: RateLimiter;
   CLIENT_LIMIT?: RateLimiter;
 };
