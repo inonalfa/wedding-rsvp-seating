@@ -23,7 +23,13 @@ jobs:
         run: |
           npm run demo:setup
           npx wrangler d1 migrations apply site-creator-d1 --local
-      - run: npx playwright install --with-deps chromium --only-shell
+      - name: Select Chromium for Playwright
+        run: |
+          if chrome=$(command -v google-chrome); then
+            printf 'PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=%s\n' "$chrome" >> "$GITHUB_ENV"
+          else
+            timeout 90s npx playwright install chromium --only-shell
+          fi
       - run: npm run test:e2e
       - uses: actions/upload-artifact@v7.0.2
         if: always()
