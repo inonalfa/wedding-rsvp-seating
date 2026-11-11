@@ -41,17 +41,29 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
         const blocked = await limited(env.CLIENT_LIMIT, "staff:" + await clientKey());
         return blocked ?? tableSearch(request, env, search[1]);
       }
+      if (url.pathname === "/auth/logout" && request.method === "POST") {
+        const blocked = await limited(env.RECOVERY_LIMIT, "logout:" + await clientKey());
+        return blocked ?? authRoute(request, env, Date.now(), fetcher);
+      }
       if (url.pathname.startsWith("/auth/")) {
         const blocked = await limited(env.LOGIN_LIMIT, "login:" + await clientKey());
         return blocked ?? authRoute(request, env, Date.now(), fetcher);
       }
       if (url.pathname === "/operator/usage" && request.method === "GET") {
         const owner = await sessionOwner(request, env);
-        return owner ? usagePage(env, owner, Date.now()) : page("העמוד לא נמצא", "", 404);
+        if (!owner) return page("העמוד לא נמצא", "", 404);
+        const blocked = await limited(env.OWNER_LIMIT, "owner:" + owner);
+        return blocked ?? usagePage(env, owner, Date.now());
       }
       if (url.pathname === "/" || url.pathname === "/events" || url.pathname.startsWith("/events/")) {
         const owner = await sessionOwner(request, env);
-        if (owner) return ownerPage(request, env, owner);
+        if (owner) {
+          const dataRoute = /^\/events\/[0-9a-f-]{36}\/data$/.test(url.pathname);
+          const blocked = dataRoute
+            ? await limited(env.RECOVERY_LIMIT, "data:" + owner)
+            : await limited(env.OWNER_LIMIT, "owner:" + owner);
+          return blocked ?? ownerPage(request, env, owner);
+        }
         if (url.pathname !== "/" || request.method !== "GET") return page("נדרשת התחברות", '<a href="/">חזרה</a>', 401);
         const error = url.searchParams.get("signin") === "failed" ? '<p role="alert">ההתחברות לא הצליחה. נסו שוב.</p>' : "";
         return page("אישורי הגעה וסידורי הושבה", error + '<a href="/auth/login">התחברות באמצעות Google</a>');

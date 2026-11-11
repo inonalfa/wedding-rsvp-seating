@@ -18,7 +18,12 @@ export function purgeTime(date: string, now: number) {
   const start = Date.parse(date + "T00:00:00Z");
   if (!Number.isFinite(start) || new Date(start).toISOString().slice(0, 10) !== date) return null;
   const formatter = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
-  const today = Date.parse(formatter.format(now) + "T00:00:00Z");
+  function localDate(instant: number) {
+    const parts = formatter.formatToParts(instant);
+    const get = (kind: string) => parts.find(part => part.type === kind)?.value;
+    return `${get("year")}-${get("month")}-${get("day")}`;
+  }
+  const today = Date.parse(localDate(now) + "T00:00:00Z");
   if (start < today || start > today + 366 * day) return null;
   const target = new Date(start + 91 * day).toISOString().slice(0, 10);
   // Find the first minute of the local calendar day. The offset at UTC
@@ -28,7 +33,7 @@ export function purgeTime(date: string, now: number) {
   let upper = nominal + 24 * 60;
   while (lower < upper) {
     const middle = Math.floor((lower + upper) / 2);
-    if (formatter.format(middle * 60_000) < target) lower = middle + 1;
+    if (localDate(middle * 60_000) < target) lower = middle + 1;
     else upper = middle;
   }
   return lower * 60_000;

@@ -41,6 +41,7 @@ test("missing or failed usage refresh closes admission without changing the last
     respond(payload({ ...good, d1QueriesAdaptiveGroups: [{ sum: { rowsRead: 0 } }] })),
     respond(payload({ ...good, d1QueriesAdaptiveGroups: [{ sum: null }] })),
     respond({ data: null }),
+    respond({ ...payload(good), errors: null }),
     respond({ ...payload(good), errors: [{ message: "partial response" }] }),
     async () => new Response("unavailable", { status: 503 }),
     async () => { throw new Error("network failure"); },
