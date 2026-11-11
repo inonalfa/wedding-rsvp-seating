@@ -7,6 +7,13 @@ type Guest = { guest_id: string; name: string; max_guests: number };
 export function ownerStore(db: D1Database, ownerId: string, now = Date.now()) {
   const activeEvent = "SELECT event_id FROM events WHERE event_id = ? AND owner_id = ? AND purge_at > ?";
   return {
+    async createEvent(title: string, date: string, timeZone: string, purgeAt: number) {
+      const id = crypto.randomUUID();
+      const result = await db.prepare(`INSERT INTO events(event_id, owner_id, title, event_date, time_zone, purge_at)
+        SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT count(*) FROM events) < 20
+        ON CONFLICT(owner_id) DO NOTHING`).bind(id, ownerId, title, date, timeZone, purgeAt).run();
+      return result.meta.changes === 1 ? id : null;
+    },
     async listEvents() {
       return (await db.prepare(
         "SELECT event_id, title, event_date, time_zone, purge_at FROM events WHERE owner_id = ? AND purge_at > ?",
