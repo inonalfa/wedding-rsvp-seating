@@ -10,7 +10,7 @@ import { invitationKey, signInvitation } from "../hosted/invites.ts";
 test("a signed-in owner can create one event, and other owners cannot read it", async () => {
   const sql = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql"]) {
+    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql", "0006_connectors.sql"]) {
       sql.exec(readFileSync(new URL("../hosted/migrations/" + name, import.meta.url), "utf8"));
     }
     sql.exec("PRAGMA foreign_keys=ON");
@@ -125,6 +125,25 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
       method: "POST", headers: { origin }, body: new URLSearchParams({ name: "נועה, לוי" }),
     }), env);
     assert.match(await lookup.text(), /role="status">שולחן 2</);
+    const connect = (owner, action) => worker.fetch(new Request(origin + path + "/connections", {
+      method: "POST", headers: { origin, cookie: "__Host-hosted_session=" + owner.repeat(43) },
+      body: new URLSearchParams({ action }),
+    }), env);
+    const api = (credential, eventId = path.split("/").pop()) => worker.fetch(new Request(origin + "/api/connectors/" + eventId, {
+      headers: { authorization: "Bearer " + credential },
+    }), env);
+    assert.equal((await api("f".repeat(64))).status, 401);
+    assert.equal((await connect("b", "enable")).status, 404);
+    const enable = await connect("a", "enable");
+    const bearer = (await enable.text()).match(/value="([a-f0-9]{64})"/)[1];
+    assert.equal((await api(bearer, "00000000-0000-0000-0000-000000000000")).status, 401);
+    assert.equal((await (await api(bearer)).json()).guests[0].table_number, 2);
+    sql.exec("UPDATE event_connectors SET used_count=24");
+    assert.equal((await api(bearer)).status, 429);
+    assert.equal((await connect("a", "disable")).status, 303);
+    assert.equal((await api(bearer)).status, 401);
+    const reenable = (await (await connect("a", "enable")).text()).match(/value="([a-f0-9]{64})"/)[1];
+    assert.equal((await api(reenable)).status, 429);
 
     assert.equal((await answer(2, "no")).status, 303);
     assert.equal(sql.prepare("SELECT guest_count FROM rsvps").get().guest_count, 0);

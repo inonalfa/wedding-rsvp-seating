@@ -1,3 +1,4 @@
+import { connectorSnapshot } from "./connectors";
 import { limited } from "./abuse";
 import { authRoute, sessionOwner, type AuthEnv } from "./auth";
 
@@ -23,6 +24,11 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
         const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(client)));
         return btoa(String.fromCharCode(...digest));
       };
+      const connector = url.pathname.match(/^\/api\/connectors\/([a-f0-9-]{36})$/);
+      if (connector) {
+        const blocked = await limited(env.GUEST_LIMIT, "connector:" + await clientKey());
+        return blocked ?? connectorSnapshot(request, env, connector[1]);
+      }
       if (invite) {
         const blocked = await limited(env.CLIENT_LIMIT, "guest:" + await clientKey());
         return blocked ?? guestInvitation(request, env, invite[1], Date.now(), fetcher);
