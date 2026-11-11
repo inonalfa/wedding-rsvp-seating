@@ -6,6 +6,7 @@ export interface AuthEnv {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   HOSTED_AUTH_SECRET?: string;
+  HOSTED_INVITE_SECRET?: string;
 }
 
 const encoder = new TextEncoder();

@@ -2,6 +2,7 @@ import { authRoute, sessionOwner, type AuthEnv } from "./auth";
 
 import { ownerPage } from "./events";
 import { page } from "./http";
+import { guestInvitation } from "./invites";
 
 const worker = {
   async fetch(request: Request, env: AuthEnv): Promise<Response> {
@@ -9,6 +10,8 @@ const worker = {
     if (request.method === "GET" && url.pathname === "/health") {
       return Response.json({ status: "ok" }, { headers: { "Cache-Control": "no-store" } });
     }
+    const invite = url.pathname.match(/^\/invite\/([a-zA-Z0-9_.-]{1,160})$/);
+    if (invite) return guestInvitation(request, env, invite[1]);
     if (url.pathname.startsWith("/auth/")) return authRoute(request, env);
     if (url.pathname === "/" || url.pathname === "/events" || url.pathname.startsWith("/events/")) {
       const owner = await sessionOwner(request, env);

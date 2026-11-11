@@ -5,15 +5,16 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import worker from "../hosted/worker.ts";
 import { purgeTime } from "../hosted/events.ts";
+import { invitationKey, signInvitation } from "../hosted/invites.ts";
 
 test("a signed-in owner can create one event, and other owners cannot read it", async () => {
   const sql = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql"]) {
+    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql"]) {
       sql.exec(readFileSync(new URL("../hosted/migrations/" + name, import.meta.url), "utf8"));
     }
     const origin = "https://weddings.example.test";
-    const env = { HOSTED_ORIGIN: origin, HOSTED_DB: { prepare(query) {
+    const env = { HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 9).toString("base64url"), HOSTED_DB: { prepare(query) {
       return { bind(...values) {
         return {
           async first() { return sql.prepare(query).get(...values) ?? null; },
@@ -71,6 +72,32 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     const tooMany = "name,max_guests\n" + "Fictional,1\n".repeat(300);
     assert.equal((await upload("a", tooMany)).status, 409);
     assert.equal(sql.prepare("SELECT count(*) AS n FROM guests").get().n, 1);
+    const guest = sql.prepare("SELECT guest_id FROM guests").get();
+    const inviteRoute = path + "/invites/" + guest.guest_id;
+    assert.equal((await get(inviteRoute, "b")).status, 404);
+    const share = await get(inviteRoute, "a");
+    const invite = (await share.text()).match(/href="(https:\/\/weddings\.example\.test(\/invite\/[^"]+))">פתיחת ההזמנה/)[2];
+    assert.equal((await get(invite)).status, 200);
+    const key = await invitationKey(env.HOSTED_INVITE_SECRET);
+    const expired = await signInvitation(key, path.split("/").pop(), guest.guest_id, 1, Date.now() - 31 * 86400_000);
+    assert.equal((await get("/invite/" + expired)).status, 404);
+    assert.equal((await get(invite.replace(/(\.[^.])/, (_, start) => "." + (start[1] === "a" ? "b" : "a")))).status, 404);
+    const answer = (count, attendance = "yes") => worker.fetch(new Request(origin + invite, {
+      method: "POST", headers: { origin },
+      body: new URLSearchParams({ attendance, guest_count: String(count), name: "Ignored" }),
+    }), env);
+    assert.equal((await answer(3)).status, 400);
+    assert.equal((await answer(2)).status, 303);
+    assert.equal((await answer(2)).status, 303);
+    assert.equal(sql.prepare("SELECT count(*) AS n FROM rsvps").get().n, 1);
+    assert.equal(sql.prepare("SELECT guest_count FROM rsvps").get().guest_count, 2);
+    assert.match(await (await get(path, "a")).text(), /אישרו: 2/);
+    assert.equal((await answer(2, "no")).status, 303);
+    assert.equal(sql.prepare("SELECT guest_count FROM rsvps").get().guest_count, 0);
+    sql.exec("UPDATE guests SET invite_version = invite_version + 1");
+    assert.equal((await get(invite)).status, 404);
+    assert.equal((await answer(1)).status, 404);
+
 
     assert.doesNotMatch(await (await get("/", "b")).text(), /Fictional event/);
     for (let i = 0; i < 19; i++) {
