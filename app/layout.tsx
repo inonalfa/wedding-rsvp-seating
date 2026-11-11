@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { eventDate, eventHosts } from '@/lib/event-config';
 import "./globals.css";
+import DemoBanner from "./DemoBanner";
+import { getWeddingRuntimeConfig } from "@/lib/runtime-config";
 
 export const metadata: Metadata = {
   title: `${eventHosts} - אישורי הגעה`,
@@ -18,5 +20,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = { themeColor: "#13271f", colorScheme: "light", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <html lang="he" dir="rtl"><head><link rel="preload" href="/fonts/frank-ruhl-libre.woff" as="font" type="font/woff" crossOrigin="anonymous" /><link rel="preload" href="/fonts/heebo-regular.woff" as="font" type="font/woff" crossOrigin="anonymous" /></head><body>{children}</body></html>;
+  const demoMode = getWeddingRuntimeConfig().demoMode;
+  return <html lang="he" dir="rtl"><head><link rel="preload" href="/fonts/frank-ruhl-libre.woff" as="font" type="font/woff" crossOrigin="anonymous" /><link rel="preload" href="/fonts/heebo-regular.woff" as="font" type="font/woff" crossOrigin="anonymous" /></head><body>{demoMode && <DemoBanner />}{children}</body></html>;
 }

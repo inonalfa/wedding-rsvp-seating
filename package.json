@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "validate:artifact": "bash scripts/validate-artifact.sh",
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next --max-warnings=0",
-    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate"
+    "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
+    "screenshots:mobile": "node scripts/capture-mobile-demo.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

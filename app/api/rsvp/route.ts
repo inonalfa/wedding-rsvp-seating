@@ -45,11 +45,16 @@ export async function POST(request: Request) {
       return Response.json({ error: "קישור ההזמנה אינו תקין" }, { status: 400 });
     }
 
-    const fullName = cleanText(payload.fullName, 80);
+    const { demoMode } = getWeddingRuntimeConfig();
+    if (demoMode && !invite) {
+      return Response.json({ error: "בסביבת ההדגמה ניתן לעדכן רק הזמנה פיקטיבית קיימת" }, { status: 400 });
+    }
+    const submittedName = cleanText(payload.fullName, 80);
+    const fullName = demoMode ? invite!.fullName : submittedName;
     const attendance: "yes" | "no" | null = payload.attendance === "yes" || payload.attendance === "no"
       ? payload.attendance
       : null;
-    const message = cleanText(payload.message, 500);
+    const message = demoMode ? "" : cleanText(payload.message, 500);
     const requestedCount = Number(payload.guestCount);
     const limit = rsvpGuestLimit(invite?.maxGuests);
     const guestCount = attendance === "yes" ? requestedCount : 0;
