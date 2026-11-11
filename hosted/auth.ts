@@ -85,11 +85,11 @@ export async function verifyGoogleIdToken(token: string, client: string, nonce: 
   return claims.sub as string;
 }
 
-export async function sessionOwner(request: Request, env: AuthEnv, now = Date.now()) {
+export async function sessionOwner(request: Request, env: AuthEnv, now = Date.now(), maxAgeMs = 86400_000) {
   const token = getCookie(request, sessionCookie);
   if (!token || !/^[\w-]{43}$/.test(token)) return null;
   return (await env.HOSTED_DB.prepare("SELECT account_id FROM sessions WHERE token_hash = ? AND expires_at > ?")
-    .bind(await hash(token), now).first<{ account_id: string }>())?.account_id ?? null;
+    .bind(await hash(token), now + 86400_000 - maxAgeMs).first<{ account_id: string }>())?.account_id ?? null;
 }
 
 export async function authRoute(request: Request, env: AuthEnv, now = Date.now(), fetcher: typeof fetch = fetch) {
