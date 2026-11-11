@@ -23,13 +23,13 @@ try {
   const guestPage = await guest.newPage();
   await guestPage.goto(shortLink);
   await guestPage.locator('#guest-name').waitFor();
-  await guestPage.screenshot({ path: new URL('../docs/media/mobile-invite.png', import.meta.url).pathname, fullPage: true });
+  await guestPage.screenshot({ path: new URL('../docs/media/mobile-invite.png', import.meta.url).pathname, fullPage: false });
 
   const staffPage = await staff.newPage();
   await staffPage.goto(`${baseURL}/find-table`);
   await staffPage.getByRole('searchbox').fill('מיה');
   await staffPage.getByText('מיה ברק').waitFor();
-  await staffPage.screenshot({ path: new URL('../docs/media/mobile-table-search.png', import.meta.url).pathname, fullPage: true });
+  await staffPage.screenshot({ path: new URL('../docs/media/mobile-table-search.png', import.meta.url).pathname, fullPage: false });
 } finally {
   await Promise.all([admin.close(), guest.close(), staff.close()]);
   await browser.close();

@@ -17,7 +17,7 @@ test('mobile fictional invitation and Hebrew table search media', async ({ brows
     await guestPage.goto(shortLink);
     await expect(guestPage.getByRole('note', { name: 'סביבת הדגמה' })).toContainText(banner);
     await expect(guestPage.locator('#guest-name')).toHaveValue('דנה בדיקה');
-    await guestPage.screenshot({ path: testInfo.outputPath('mobile-invite.png'), fullPage: true, animations: 'disabled' });
+    await guestPage.screenshot({ path: testInfo.outputPath('mobile-invite.png'), fullPage: false, animations: 'disabled' });
 
     const staffPage = await staff.newPage();
     await staffPage.goto('/find-table');
@@ -25,6 +25,6 @@ test('mobile fictional invitation and Hebrew table search media', async ({ brows
     const search = staffPage.getByRole('searchbox');
     await search.fill('מיה');
     await expect(staffPage.getByText('מיה ברק')).toBeVisible();
-    await staffPage.screenshot({ path: testInfo.outputPath('mobile-table-search.png'), fullPage: true, animations: 'disabled' });
+    await staffPage.screenshot({ path: testInfo.outputPath('mobile-table-search.png'), fullPage: false, animations: 'disabled' });
   } finally { await Promise.all([admin.close(), guest.close(), staff.close()]); }
 });
