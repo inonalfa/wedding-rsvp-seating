@@ -31,9 +31,9 @@ This tour uses fictional demo records. Desktop and mobile screenshots are genera
 
 ## Live demo
 
-**[Open the fictional live demo](LIVE_DEMO_URL_PLACEHOLDER)**
+**[Open the fictional live demo](https://wedding-rsvp-seating-demo.inonalfa.workers.dev)**
 
-The hosted demo contains fictional records only and displays a banner on every page. Public RSVP writes require a valid fictional demo invitation; submitted names and notes cannot introduce personal data. It is a shared environment, so changes may be reset. Replace the placeholder URL above with the deployed Worker URL.
+The hosted demo contains fictional data only and displays a banner on every page. Admin pages are password-protected with username `admin`; the password is available on request. Integrations are disabled in the demo. Public RSVP writes require a valid fictional demo invitation, and submitted names or notes cannot introduce personal data. It is a shared environment, so changes may be reset.
 
 ## Architecture
 
