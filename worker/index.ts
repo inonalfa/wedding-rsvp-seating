@@ -83,6 +83,7 @@ const worker = {
       whatsappRsvpSecret: env.WHATSAPP_RSVP_SECRET,
       seatingSyncSecret: env.SEATING_SYNC_SECRET,
       demoMode: env.DEMO_MODE === '1',
+      demoAuth: env.DEMO_AUTH === '1',
       authMode: env.AUTH_MODE,
     };
     return requestContext.run({ db: env.DB, config }, async () => {

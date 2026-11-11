@@ -33,7 +33,7 @@ This tour uses fictional demo records. Desktop and mobile screenshots are genera
 
 **[Open the fictional live demo](https://wedding-rsvp-seating-demo.inonalfa.workers.dev)**
 
-The hosted demo contains fictional data only and displays a banner on every page. Admin pages are password-protected with username `admin`; the password is available on request. Integrations are disabled in the demo. Public RSVP writes require a valid fictional demo invitation, and submitted names or notes cannot introduce personal data. It is a shared environment, so changes may be reset.
+The hosted demo contains fictional data only and displays a banner on every page. On the homepage, use **Try the demo** to open a runtime-signed fictional invitation and submit the RSVP form end to end. The same box links to the Hebrew table search when it is public; otherwise it explains that staff authentication is required. Admin pages are password-protected with username `admin`; the password is available on request. Integrations are disabled in the demo. Submitted names and notes are discarded in favor of the signed fictional identity, and repeated submissions update the same demo response, so the shared flow remains ready for the next visitor.
 
 ## Architecture
 
