@@ -1,10 +1,12 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useState } from "react";
 import Link from "next/link";
 import { eventConfig, eventDate } from "@/lib/event-config";
+import AdminDataSection from "./AdminDataSection";
+import { useAdminData } from "./useAdminData";
 
-type RsvpResponse = {
+export type RsvpResponse = {
   id: number;
   inviteId: string | null;
   firstName: string;
@@ -23,7 +25,7 @@ type RsvpResponse = {
   updatedAt: string;
 };
 
-type InviteVisit = {
+export type InviteVisit = {
   id: number;
   inviteId: string;
   firstName: string;
@@ -36,7 +38,7 @@ type InviteVisit = {
   syncError: string;
 };
 
-type GeneratedInvite = {
+export type GeneratedInvite = {
   id: number;
   inviteId: string;
   firstName: string;
@@ -49,7 +51,7 @@ type GeneratedInvite = {
   updatedAt: string;
 };
 
-type LegacyResponse = {
+export type LegacyResponse = {
   id: number;
   fullName: string;
   phone: string;
@@ -60,7 +62,7 @@ type LegacyResponse = {
   updatedAt: string;
 };
 
-type AdminData = {
+export type AdminData = {
   responses: RsvpResponse[];
   visits: InviteVisit[];
   invites: GeneratedInvite[];
@@ -68,9 +70,9 @@ type AdminData = {
   exclusions: { token: string; createdAt: string }[];
 };
 
-type Tab = "overview" | "responses" | "visits" | "invites" | "legacy";
+export type Tab = "overview" | "responses" | "visits" | "invites" | "legacy";
 
-type OverviewRow = {
+export type OverviewRow = {
   inviteId: string;
   firstName: string;
   sourceSheet: string;
@@ -88,37 +90,6 @@ type OverviewRow = {
   updatedAt: string;
 };
 
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return "-";
-  const normalized = value.includes("T") ? value : `${value.replace(" ", "T")}Z`;
-  const date = new Date(normalized);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("he-IL", {
-    dateStyle: "short",
-    timeStyle: "short",
-    timeZone: eventConfig.timeZone,
-  }).format(date);
-}
-
-function attendanceLabel(attendance: "yes" | "no" | null) {
-  if (attendance === "yes") return "מגיעים";
-  if (attendance === "no") return "לא מגיעים";
-  return "טרם השיבו";
-}
-
-function syncLabel(status: string) {
-  if (status === "synced") return "סונכרן";
-  if (status === "pending") return "ממתין לסנכרון";
-  if (status === "not_configured") return "לא מוגדר";
-  return status || "-";
-}
-
-function includesSearch(values: Array<string | number | null | undefined>, search: string) {
-  const query = search.trim().toLocaleLowerCase("he");
-  if (!query) return true;
-  return values.some((value) => String(value ?? "").toLocaleLowerCase("he").includes(query));
-}
 
 async function copyText(value: string) {
   await navigator.clipboard.writeText(value);
@@ -147,93 +118,7 @@ export default function AdminDashboard({
   const [exclusionPending, setExclusionPending] = useState(false);
   const [exclusionError, setExclusionError] = useState("");
 
-  const overviewRows = useMemo(() => {
-    const rows = new Map<string, OverviewRow>();
-    for (const invite of data.invites) {
-      rows.set(invite.inviteId, {
-        inviteId: invite.inviteId,
-        firstName: invite.firstName,
-        sourceSheet: invite.sourceSheet,
-        sourceRow: invite.sourceRow,
-        maxGuests: invite.maxGuests,
-        opened: false,
-        openCount: 0,
-        firstOpenedAt: "",
-        attendance: null,
-        guestCount: null,
-        fullName: "",
-        message: "",
-        syncStatus: "",
-        link: invite.shortLink,
-        updatedAt: invite.updatedAt,
-      });
-    }
-    for (const visit of data.visits) {
-      const current = rows.get(visit.inviteId);
-      rows.set(visit.inviteId, {
-        inviteId: visit.inviteId,
-        firstName: current?.firstName || visit.firstName,
-        sourceSheet: current?.sourceSheet || visit.sourceSheet,
-        sourceRow: current?.sourceRow ?? visit.sourceRow,
-        maxGuests: current?.maxGuests ?? null,
-        opened: true,
-        openCount: visit.openCount,
-        firstOpenedAt: visit.firstOpenedAt,
-        attendance: current?.attendance ?? null,
-        guestCount: current?.guestCount ?? null,
-        fullName: current?.fullName || "",
-        message: current?.message || "",
-        syncStatus: visit.syncStatus,
-        link: current?.link || "",
-        updatedAt: visit.lastOpenedAt,
-      });
-    }
-    for (const response of data.responses) {
-      const key = response.inviteId || `response:${response.id}`;
-      const current = rows.get(key);
-      rows.set(key, {
-        inviteId: response.inviteId || "ללא מזהה",
-        firstName: current?.firstName || response.firstName || response.invitedName || response.fullName,
-        sourceSheet: current?.sourceSheet || response.sourceSheet || "-",
-        sourceRow: current?.sourceRow ?? response.sourceRow,
-        maxGuests: current?.maxGuests ?? response.maxGuests,
-        opened: current?.opened ?? false,
-        openCount: current?.openCount ?? 0,
-        firstOpenedAt: current?.firstOpenedAt || "",
-        attendance: response.attendance,
-        guestCount: response.guestCount,
-        fullName: response.fullName,
-        message: response.message,
-        syncStatus: response.syncStatus,
-        link: current?.link || "",
-        updatedAt: response.updatedAt,
-      });
-    }
-    return [...rows.values()].sort((a, b) => (b.updatedAt || "").localeCompare(a.updatedAt || ""));
-  }, [data]);
-
-  const filteredOverview = overviewRows.filter((row) =>
-    includesSearch([row.firstName, row.fullName, row.inviteId, row.sourceSheet, row.sourceRow], search),
-  );
-  const filteredResponses = data.responses.filter((row) =>
-    includesSearch([row.firstName, row.fullName, row.inviteId, row.sourceSheet, row.sourceRow, row.message], search),
-  );
-  const filteredVisits = data.visits.filter((row) =>
-    includesSearch([row.firstName, row.inviteId, row.sourceSheet, row.sourceRow], search),
-  );
-  const filteredInvites = data.invites.filter((row) =>
-    includesSearch([row.firstName, row.inviteId, row.sourceSheet, row.sourceRow], search),
-  );
-  const filteredLegacy = data.legacyResponses.filter((row) =>
-    includesSearch([row.fullName, row.phone, row.message], search),
-  );
-
-  const stats = useMemo(() => ({
-    coming: data.responses.filter((row) => row.attendance === "yes").length,
-    guests: data.responses.reduce((sum, row) => sum + (row.attendance === "yes" ? row.guestCount : 0), 0),
-    declined: data.responses.filter((row) => row.attendance === "no").length,
-    opened: data.visits.length,
-  }), [data]);
+  const { overviewRows, filteredOverview, filteredResponses, filteredVisits, filteredInvites, filteredLegacy, stats } = useAdminData(data, search);
 
   async function refreshData() {
     setIsRefreshing(true);
@@ -397,70 +282,10 @@ export default function AdminDashboard({
         </div>
       </section>
 
-      <section className="admin-data-section">
-        <div className="admin-data-heading">
-          <div><p className="admin-kicker">הדאטאבייס</p><h2>נתוני האורחים</h2></div>
-          <div className="admin-data-actions">
-            <label className="admin-search"><span aria-hidden="true">⌕</span><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="חיפוש לפי שם או מזהה" /></label>
-            <button type="button" onClick={refreshData} disabled={isRefreshing}>{isRefreshing ? "מרענן..." : "רענון נתונים"}</button>
-          </div>
-        </div>
-
-        <div className="admin-tabs" role="tablist" aria-label="טבלאות נתונים">
-          {([
-            ["overview", "תמונה מלאה", overviewRows.length],
-            ["responses", "אישורי הגעה", data.responses.length],
-            ["visits", "פתיחות", data.visits.length],
-            ["invites", "קישורים שנוצרו", data.invites.length],
-            ["legacy", "נתונים ישנים", data.legacyResponses.length],
-          ] as Array<[Tab, string, number]>).map(([tab, label, count]) => (
-            <button key={tab} type="button" role="tab" aria-selected={activeTab === tab} className={activeTab === tab ? "active" : ""} onClick={() => setActiveTab(tab)}>{label}<span>{count}</span></button>
-          ))}
-        </div>
-
-        <div className="admin-table-wrap">
-          {activeTab === "overview" && (
-            <table><thead><tr><th>מוזמן</th><th>מיקום בגיליון</th><th>פתיחת קישור</th><th>אישור הגעה</th><th>השם שנשלח</th><th>סנכרון</th></tr></thead>
-              <tbody>{filteredOverview.map((row) => <tr key={row.inviteId}>
-                <td><strong>{row.firstName || row.fullName || "ללא שם"}</strong><code dir="ltr">{row.inviteId}</code></td>
-                <td>{row.sourceSheet}<small>{row.sourceRow ? `שורה מקורית ${row.sourceRow}` : "מזהה קבוע"}</small></td>
-                <td><span className={`admin-status ${row.opened ? "positive" : "muted"}`}>{row.opened ? "נפתח" : "לא נפתח"}</span><small>{row.opened ? `${row.openCount} פתיחות · ${formatDate(row.firstOpenedAt)}` : "אין פתיחה מתועדת"}</small></td>
-                <td><span className={`admin-status ${row.attendance === "yes" ? "positive" : row.attendance === "no" ? "negative" : "muted"}`}>{attendanceLabel(row.attendance)}</span><small>{row.attendance === "yes" ? `${row.guestCount} מגיעים` : row.message || "-"}</small></td>
-                <td>{row.fullName || "-"}</td>
-                <td><span className={`admin-status ${row.syncStatus === "synced" ? "positive" : "muted"}`}>{syncLabel(row.syncStatus)}</span></td>
-              </tr>)}</tbody></table>
-          )}
-
-          {activeTab === "responses" && (
-            <table><thead><tr><th>ID</th><th>מוזמן</th><th>תשובה</th><th>הודעה</th><th>מקור</th><th>סנכרון</th><th>עודכן</th></tr></thead>
-              <tbody>{filteredResponses.map((row) => <tr key={row.id}><td>{row.id}<code dir="ltr">{row.inviteId || "-"}</code></td><td><strong>{row.fullName}</strong><small>{row.firstName || row.invitedName || "-"}</small></td><td><span className={`admin-status ${row.attendance === "yes" ? "positive" : "negative"}`}>{attendanceLabel(row.attendance)}</span><small>{row.attendance === "yes" ? `${row.guestCount} משתתפים` : "0 משתתפים"}</small></td><td>{row.message || "-"}</td><td>{row.sourceSheet || "-"}<small>{row.sourceRow ? `שורה מקורית ${row.sourceRow}` : "איתור לפי מזהה"}</small></td><td>{syncLabel(row.syncStatus)}<small>{row.syncError || ""}</small></td><td>{formatDate(row.updatedAt)}</td></tr>)}</tbody></table>
-          )}
-
-          {activeTab === "visits" && (
-            <table><thead><tr><th>ID</th><th>מוזמן</th><th>מזהה</th><th>מקור</th><th>פתיחה ראשונה</th><th>פתיחה אחרונה</th><th>כמות</th><th>סנכרון</th></tr></thead>
-              <tbody>{filteredVisits.map((row) => <tr key={row.id}><td>{row.id}</td><td><strong>{row.firstName}</strong></td><td><code dir="ltr">{row.inviteId}</code></td><td>{row.sourceSheet}<small>{row.sourceRow ? `שורה מקורית ${row.sourceRow}` : "איתור לפי מזהה"}</small></td><td>{formatDate(row.firstOpenedAt)}</td><td>{formatDate(row.lastOpenedAt)}</td><td>{row.openCount}</td><td>{syncLabel(row.syncStatus)}<small>{row.syncError || ""}</small></td></tr>)}</tbody></table>
-          )}
-
-          {activeTab === "invites" && (
-            <table><thead><tr><th>ID</th><th>מוזמן</th><th>מזהה</th><th>מקור</th><th>קישור</th><th>נוצר על ידי</th><th>עודכן</th></tr></thead>
-              <tbody>{filteredInvites.map((row) => <tr key={row.id}><td>{row.id}</td><td><strong>{row.firstName}</strong></td><td><code dir="ltr">{row.inviteId}</code></td><td>{row.sourceSheet}<small>{row.sourceRow ? `שורה מקורית ${row.sourceRow}` : "מזהה קבוע"}</small></td><td><a className="admin-table-link" href={row.shortLink} target="_blank" rel="noreferrer">פתיחת קישור ↗</a></td><td>{row.createdBy}</td><td>{formatDate(row.updatedAt)}</td></tr>)}</tbody></table>
-          )}
-
-          {activeTab === "legacy" && (
-            <table><thead><tr><th>ID</th><th>שם</th><th>טלפון</th><th>תשובה</th><th>אורחים</th><th>הודעה</th><th>נשלח</th><th>עודכן</th></tr></thead>
-              <tbody>{filteredLegacy.map((row) => <tr key={row.id}><td>{row.id}</td><td><strong>{row.fullName}</strong></td><td dir="ltr">{row.phone}</td><td>{attendanceLabel(row.attendance)}</td><td>{row.guestCount}</td><td>{row.message || "-"}</td><td>{formatDate(row.submittedAt)}</td><td>{formatDate(row.updatedAt)}</td></tr>)}</tbody></table>
-          )}
-
-          {((activeTab === "overview" && filteredOverview.length === 0) ||
-            (activeTab === "responses" && filteredResponses.length === 0) ||
-            (activeTab === "visits" && filteredVisits.length === 0) ||
-            (activeTab === "invites" && filteredInvites.length === 0) ||
-            (activeTab === "legacy" && filteredLegacy.length === 0)) && (
-            <div className="admin-empty-state"><span aria-hidden="true">◇</span><strong>אין נתונים להצגה</strong><p>{search ? "לא נמצאו תוצאות לחיפוש הזה." : "הטבלה תתמלא כאשר יתקבלו נתונים."}</p></div>
-          )}
-        </div>
-        <p className="admin-data-footnote">דף זה מציג את הנתונים השמורים בדאטאבייס של האתר. רשימת המוזמנים המלאה, כולל מי שטרם פתח קישור, נשמרת ב-Google Sheets.</p>
-      </section>
+      <AdminDataSection activeTab={activeTab} setActiveTab={setActiveTab} search={search} setSearch={setSearch}
+        isRefreshing={isRefreshing} refreshData={refreshData} overviewCount={overviewRows.length}
+        responseCount={data.responses.length} visitCount={data.visits.length} inviteCount={data.invites.length} legacyCount={data.legacyResponses.length}
+        overview={filteredOverview} responses={filteredResponses} visits={filteredVisits} invites={filteredInvites} legacy={filteredLegacy} />
     </main>
   );
 }
