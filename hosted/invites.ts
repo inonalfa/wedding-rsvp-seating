@@ -1,3 +1,4 @@
+import { checkChallenge, limited, widget, type AbuseEnv } from "./abuse";
 import type { D1Database } from "@cloudflare/workers-types";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
 
@@ -31,11 +32,11 @@ export async function checkInvitation(key: CryptoKey, token: string, now: number
   return { eventId, guestId, version: Number(version) };
 }
 
-type InviteEnv = { HOSTED_DB: D1Database; HOSTED_ORIGIN?: string; HOSTED_INVITE_SECRET?: string };
+type InviteEnv = AbuseEnv & { HOSTED_DB: D1Database; HOSTED_ORIGIN?: string; HOSTED_INVITE_SECRET?: string };
 type InviteGuest = { title: string; event_date: string; name: string; max_guests: number; table_number: number | null };
 const active = `g.event_id = ? AND g.guest_id = ? AND g.invite_version = ? AND e.purge_at > ?`;
 
-export async function guestInvitation(request: Request, env: InviteEnv, token: string, now = Date.now()) {
+export async function guestInvitation(request: Request, env: InviteEnv, token: string, now = Date.now(), fetcher: typeof fetch = fetch) {
   const missing = () => page("ההזמנה לא נמצאה או שפג תוקפה", "", 404);
   if (!env.HOSTED_INVITE_SECRET) return page("הזמנות אינן זמינות כרגע", "", 503);
   const verified = await checkInvitation(await invitationKey(env.HOSTED_INVITE_SECRET), token, now);
@@ -52,12 +53,18 @@ export async function guestInvitation(request: Request, env: InviteEnv, token: s
     const counts = Array.from({ length: guest.max_guests }, (_, i) => `<option>${i + 1}</option>`).join("");
     const saved = new URL(request.url).searchParams.get("saved") === "1" ? '<p role="status">התשובה נשמרה. אפשר לעדכן אותה כאן.</p>' : "";
     const table = guest.table_number ? `<p>השולחן שלכם: ${guest.table_number}</p>` : "";
-    return page(guest.title, `${saved}${table}<p>שלום ${escapeHtml(guest.name)}, מוזמנים לחגוג איתנו ב-${escapeHtml(guest.event_date)}.</p><form method="post" action="/invite/${token}"><label>כמות מגיעים <select name="guest_count">${counts}</select></label> <button name="attendance" value="yes">מאשרים הגעה</button> <button name="attendance" value="no">לא מגיעים</button></form>`);
+    const challenge = widget(env, "rsvp");
+    return page(guest.title, `${saved}${table}<p>שלום ${escapeHtml(guest.name)}, מוזמנים לחגוג איתנו ב-${escapeHtml(guest.event_date)}.</p><form method="post" action="/invite/${token}"><label>כמות מגיעים <select name="guest_count">${counts}</select></label>${challenge} <button name="attendance" value="yes">מאשרים הגעה</button> <button name="attendance" value="no">לא מגיעים</button></form>`, 200, Boolean(challenge));
   }
   if (request.method !== "POST") return missing();
   if (!env.HOSTED_ORIGIN || new URL(request.url).origin !== env.HOSTED_ORIGIN ||
       request.headers.get("origin") !== env.HOSTED_ORIGIN) return page("הבקשה נחסמה", "", 403);
-  const form = await readForm(request, 1024);
+  const blocked = await limited(env.GUEST_LIMIT, "rsvp:" + verified.eventId + ":" + verified.guestId);
+  if (blocked) return blocked;
+  const form = await readForm(request, 4096);
+  if (!await checkChallenge(env, form, "rsvp", fetcher)) {
+    return page("האימות נכשל", `<a href="/invite/${token}">נסו שוב</a>`, 403);
+  }
   const answer = form?.get("attendance");
   const count = answer === "no" ? 0 : Number(form?.get("guest_count"));
   if ((answer !== "yes" && answer !== "no") || !Number.isInteger(count) || count < (answer === "yes" ? 1 : 0) || count > 20) {
