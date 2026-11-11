@@ -83,3 +83,7 @@ Confirm Google-only launch and recovery policy; accept a 20-event pilot and the 
 - This deployment slice adds a documented operator command, local bundle preflight and a CI dry run.
 
 Remaining operator gates: provision the separate Free account resources, verify real Google/Turnstile/Cloudflare metrics and peak CPU, publish reviewed policies, and decide when to open the pilot. No paid tier, R2, KV, managed email, or platform WhatsApp sending is configured.
+
+### Hosted audit follow-up
+
+Admission requires the latest Analytics refresh to succeed with complete aggregates. A failed refresh closes admission without overwriting the last valid counters or observation time. The scheduled purge uses the first instant of the target calendar date in Jerusalem; access expires at that instant, and physical deletion follows the next successful scheduled sweep. The [deployment checklist](hosted-deploy.md#open-launch-check-cloudflare-analytics-on-workers-free) retains live schema and Free-account permissions as a launch gate.
