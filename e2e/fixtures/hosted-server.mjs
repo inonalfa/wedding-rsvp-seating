@@ -73,7 +73,7 @@ const worker = createHostedWorker(async (url, init) => {
 
 createServer(async (request, response) => {
   try {
-    db.prepare("INSERT OR REPLACE INTO usage_snapshot VALUES (1, ?, 0, 0, 0, 1000)").run(Date.now());
+    db.prepare("INSERT OR REPLACE INTO usage_snapshot VALUES (1, ?, 0, 0, 0, 1000, NULL, 1)").run(Date.now());
     const chunks = [];
     for await (const chunk of request) chunks.push(chunk);
     const body = Buffer.concat(chunks);

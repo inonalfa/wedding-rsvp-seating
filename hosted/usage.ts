@@ -7,13 +7,22 @@ export type UsageEnv = {
   CF_ACCOUNT_ID?: string;
   CF_ANALYTICS_TOKEN?: string;
 };
-type Snapshot = { recorded_at: number; worker_requests: number; d1_reads: number; d1_writes: number; hosted_bytes: number };
+type Snapshot = { recorded_at: number; worker_requests: number; d1_reads: number; d1_writes: number; hosted_bytes: number; last_attempt_ok: number };
 const limits = { worker_requests: 100_000, d1_reads: 5_000_000, d1_writes: 100_000, hosted_bytes: 500_000_000 };
 const labels = { worker_requests: "בקשות Workers", d1_reads: "שורות D1 שנקראו", d1_writes: "שורות D1 שנכתבו", hosted_bytes: "אחסון במסד האירועים (בתים)" };
 const metrics = Object.keys(limits) as (keyof typeof limits)[];
 const day = (now: number) => new Date(now).toISOString().slice(0, 10);
 
 export async function refreshUsage(env: UsageEnv, now: number, fetcher: typeof fetch = fetch) {
+  const ok = await collectUsage(env, now, fetcher);
+  if (!ok) {
+    await env.HOSTED_DB.prepare(`UPDATE usage_snapshot SET last_attempt_at=?, last_attempt_ok=0
+      WHERE id=1 AND COALESCE(last_attempt_at, recorded_at)<=?`).bind(now, now).run();
+  }
+  return ok;
+}
+
+async function collectUsage(env: UsageEnv, now: number, fetcher: typeof fetch) {
   if (!env.CF_ACCOUNT_ID || !env.CF_ANALYTICS_TOKEN) return false;
   const query = `query HostedUsage($account: string!, $since: Time!, $until: Time!, $d1: ZoneWorkersRequestsFilter_InputObject) {
     viewer { accounts(filter: { accountTag: $account }) {
@@ -38,17 +47,22 @@ export async function refreshUsage(env: UsageEnv, now: number, fetcher: typeof f
         d1QueriesAdaptiveGroups: { sum: { rowsRead: number; rowsWritten: number } }[];
       }> } };
     };
-    const account = payload.data?.viewer.accounts[0];
+    const accounts = payload.data?.viewer?.accounts;
+    const account = Array.isArray(accounts) && accounts.length === 1 ? accounts[0] : null;
     if (payload.errors?.length || !account || !Array.isArray(account.workersInvocationsAdaptive) || !Array.isArray(account.d1QueriesAdaptiveGroups)) return false;
-    const workers = account.workersInvocationsAdaptive[0]?.sum.requests ?? 0;
-    const d1 = account.d1QueriesAdaptiveGroups[0]?.sum ?? { rowsRead: 0, rowsWritten: 0 };
+    if (account.workersInvocationsAdaptive.length !== 1 || account.d1QueriesAdaptiveGroups.length !== 1) return false;
+    const workers = account.workersInvocationsAdaptive[0]?.sum?.requests;
+    const d1 = account.d1QueriesAdaptiveGroups[0]?.sum;
     const result = await env.HOSTED_DB.prepare("SELECT id FROM usage_snapshot WHERE id=1").bind().run();
-    const values = [workers, d1.rowsRead, d1.rowsWritten, result.meta.size_after];
+    const values = [workers, d1?.rowsRead, d1?.rowsWritten, result.meta.size_after];
     if (values.some(value => typeof value !== "number" || !Number.isSafeInteger(value) || value < 0)) return false;
-    await env.HOSTED_DB.prepare(`INSERT INTO usage_snapshot VALUES (1, ?, ?, ?, ?, ?)
+    await env.HOSTED_DB.prepare(`INSERT INTO usage_snapshot
+      (id, recorded_at, worker_requests, d1_reads, d1_writes, hosted_bytes, last_attempt_at, last_attempt_ok)
+      VALUES (1, ?, ?, ?, ?, ?, ?, 1)
       ON CONFLICT(id) DO UPDATE SET recorded_at=excluded.recorded_at, worker_requests=excluded.worker_requests,
-      d1_reads=excluded.d1_reads, d1_writes=excluded.d1_writes, hosted_bytes=excluded.hosted_bytes
-      WHERE excluded.recorded_at >= usage_snapshot.recorded_at`).bind(now, ...values).run();
+      d1_reads=excluded.d1_reads, d1_writes=excluded.d1_writes, hosted_bytes=excluded.hosted_bytes,
+        last_attempt_at=excluded.last_attempt_at, last_attempt_ok=1
+      WHERE excluded.last_attempt_at >= COALESCE(usage_snapshot.last_attempt_at, usage_snapshot.recorded_at)`).bind(now, ...values, now).run();
     return true;
   } catch {
     return false;
@@ -56,11 +70,11 @@ export async function refreshUsage(env: UsageEnv, now: number, fetcher: typeof f
 }
 
 export function getUsage(db: D1Database) {
-  return db.prepare("SELECT recorded_at, worker_requests, d1_reads, d1_writes, hosted_bytes FROM usage_snapshot WHERE id=1")
+  return db.prepare("SELECT recorded_at, worker_requests, d1_reads, d1_writes, hosted_bytes, last_attempt_ok FROM usage_snapshot WHERE id=1")
     .bind().first<Snapshot>();
 }
 function freshness(snapshot: Snapshot | null, now: number) {
-  return !!snapshot && now >= snapshot.recorded_at && now - snapshot.recorded_at < 2 * 3600_000 &&
+  return !!snapshot && snapshot.last_attempt_ok === 1 && now >= snapshot.recorded_at && now - snapshot.recorded_at < 2 * 3600_000 &&
     day(now) === day(snapshot.recorded_at);
 }
 export async function hasHeadroom(db: D1Database, now: number) {
