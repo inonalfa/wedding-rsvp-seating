@@ -112,7 +112,7 @@ export async function authRoute(request: Request, env: AuthEnv, now = Date.now()
   if (url.pathname === "/auth/login" && request.method === "GET") {
     const challenge = widget(env, "login");
     if (!challenge) return page("ההתחברות אינה זמינה כרגע", "", 503);
-    return page("התחברות לשירות", `<form method="post">${challenge}<button>המשך עם Google</button></form>`, 200, true);
+    return page("התחברות לשירות", `<form method="post">${challenge}<button>המשך עם Google</button></form>`, 200, true, true);
   }
   if (request.method === "POST" && url.pathname === "/auth/login") {
     if (request.headers.get("origin") !== origin ||
