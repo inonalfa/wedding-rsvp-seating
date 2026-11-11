@@ -20,11 +20,18 @@ export function purgeTime(date: string, now: number) {
   const formatter = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" });
   const today = Date.parse(formatter.format(now) + "T00:00:00Z");
   if (start < today || start > today + 366 * day) return null;
-  const nominal = start + 91 * day;
-  const offset = new Intl.DateTimeFormat("en", { timeZone, timeZoneName: "longOffset" })
-    .formatToParts(nominal).find(p => p.type === "timeZoneName")?.value.match(/^GMT([+-])(\d{2}):(\d{2})$/);
-  if (!offset) return null;
-  return nominal - (offset[1] === "+" ? 1 : -1) * (Number(offset[2]) * 60 + Number(offset[3])) * 60_000;
+  const target = new Date(start + 91 * day).toISOString().slice(0, 10);
+  // Find the first minute of the local calendar day. The offset at UTC
+  // midnight can already be different from the offset at local midnight.
+  const nominal = (start + 91 * day) / 60_000;
+  let lower = nominal - 24 * 60;
+  let upper = nominal + 24 * 60;
+  while (lower < upper) {
+    const middle = Math.floor((lower + upper) / 2);
+    if (formatter.format(middle * 60_000) < target) lower = middle + 1;
+    else upper = middle;
+  }
+  return lower * 60_000;
 }
 
 export async function ownerPage(request: Request, env: AuthEnv, ownerId: string, now = Date.now()) {

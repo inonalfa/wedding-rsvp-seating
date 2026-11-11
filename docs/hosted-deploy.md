@@ -32,10 +32,17 @@ The command verifies the configured target, checks account subscriptions through
 
 ## Before sharing the address
 
-- Check `/health`, Google sign-in, Turnstile and the authorized `/operator/usage` screen. Wait for the hourly Cron snapshot. Verify it against account usage in Cloudflare Dashboard. The app pauses new events, import and sync at 60% or when telemetry is stale; estimates are delayed and are not billing meters. Confirm that the account's Free plan rejects over-quota operations.
+- Check `/health`, Google sign-in, Turnstile and the authorized `/operator/usage` screen. Wait for the hourly Cron snapshot. Verify it against account usage in Cloudflare Dashboard. The app pauses new events, import and sync at 60% or when telemetry is missing, failed, stale, or from a previous UTC day. Empty datasets, null aggregates, partial results and request failures close admission without moving the last valid timestamp. Only a complete, explicit zero counts as zero. Confirm that the account's Free plan rejects over-quota operations.
 - Create a fictional event, run the couple and guest flows, export and delete it. Run a bounded pilot load test with synchronized imports and RSVPs before raising the cap of 20 retained events. If live provider metrics are incompatible, keep enrollment closed and diagnose dataset permissions/schema.
 - Keep request logging disabled: invitation URLs are bearer credentials. Confirm operator privacy contact, retention and recovery procedure, and publish the lawyer-reviewed terms before accepting real guest data.
 
 ## Couple-owned connections
 
 In the event, open **חיבורים אופציונליים** and enable the read-only connection. Use an HTTP GET module in the couple's Make scenario or `UrlFetchApp.fetch` from a private Google Sheets Apps Script. Supply the displayed address and `Authorization: Bearer <event key>` using provider-side private storage. Parse the `guests` array and use `guest_id` as the matching key. For Sheets, write untrusted text as literal values, never as formulas. Configure at most hourly pulls, handle HTTP 429/503 without immediate retry, and stop the trigger when finished. Deletion revokes the key; separately delete any copies in the couple's accounts. WhatsApp uses manual sharing from the invitation page; the service does not send messages automatically.
+
+
+### Open launch check: Cloudflare Analytics on Workers Free
+
+Repository review cross-checked the D1 filter against the pinned Wrangler 4.92.0 `d1 insights` implementation: it uses `ZoneWorkersRequestsFilter_InputObject` for `d1QueriesAdaptiveGroups` with `datetimeHour_geq`, `datetimeHour_leq`, `rowsRead`, and `rowsWritten`. This is source evidence, not live schema or entitlement verification. No dedicated Free-account credentials were available for this review.
+
+Before opening the pilot, use the intended Free account and Account Analytics Read token to run the exact `HostedUsage` query and variables from `hosted/usage.ts`. Use [schema discovery](https://developers.cloudflare.com/analytics/graphql-api/features/discovery/) to verify the D1 filter argument and fields (including `__type(name: "ZoneWorkersRequestsFilter_InputObject")`), and check [dataset settings](https://developers.cloudflare.com/analytics/graphql-api/features/settings/) and [D1 Analytics](https://developers.cloudflare.com/d1/observability/metrics-analytics/) for the account. Verify both aggregates after known harmless pilot traffic, and compare them with the dashboard. If a dataset is denied or returns no row on a quiet day, leave admission closed and investigate; do not substitute zero or upgrade to a paid plan.

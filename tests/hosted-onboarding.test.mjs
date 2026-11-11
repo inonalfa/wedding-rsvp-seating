@@ -10,7 +10,7 @@ import { invitationKey, signInvitation } from "../hosted/invites.ts";
 test("a signed-in owner can create one event, and other owners cannot read it", async () => {
   const sql = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql", "0006_connectors.sql", "0007_usage.sql"]) {
+    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql", "0006_connectors.sql", "0007_usage.sql", "0008_usage_refresh_status.sql"]) {
       sql.exec(readFileSync(new URL("../hosted/migrations/" + name, import.meta.url), "utf8"));
     }
     sql.exec("PRAGMA foreign_keys=ON");
@@ -53,7 +53,7 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
     assert.equal((await get("/events/00000000-0000-0000-0000-000000000000")).status, 401);
     assert.equal((await create("https://another.example.test")).status, 403);
     assert.equal((await create()).status, 503);
-    sql.prepare("INSERT INTO usage_snapshot VALUES(1, ?, 1000, 2000, 3000, 4000)").run(Date.now() - 1);
+    sql.prepare("INSERT INTO usage_snapshot VALUES(1, ?, 1000, 2000, 3000, 4000, NULL, 1)").run(Date.now() - 1);
     assert.equal((await get("/operator/usage", "b")).status, 404);
     assert.match(await (await get("/operator/usage", "a")).text(), /3000 מתוך 100000/);
     sql.exec("UPDATE usage_snapshot SET d1_writes=60000");
@@ -199,4 +199,20 @@ test("retention uses local calendar days and rejects invalid or out-of-window da
   assert.equal(purgeTime("2027-02-30", now), null);
   assert.equal(purgeTime("2028-01-01", now), null);
   assert.equal(new Date(purgeTime("2027-06-10", now)).toISOString(), "2027-09-08T21:00:00.000Z");
+});
+
+test("purge starts at exact Jerusalem midnight across both daylight-saving changes", () => {
+  const now = Date.parse("2026-11-11T12:00:00Z");
+  for (const [event, instant] of [
+    ["2026-12-25", "2027-03-25T22:00:00.000Z"],
+    ["2027-08-01", "2027-10-30T21:00:00.000Z"],
+  ]) {
+    const expiry = purgeTime(event, now);
+    assert.equal(new Date(expiry).toISOString(), instant);
+    const clock = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "medium",
+    });
+    assert.match(clock.format(expiry - 1), /23:59:59$/);
+    assert.match(clock.format(expiry), /00:00:00$/);
+  }
 });
