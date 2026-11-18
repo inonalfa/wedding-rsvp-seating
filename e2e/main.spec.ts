@@ -27,7 +27,7 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
       headers: { Origin: baseURL! },
     });
     expect(inviteResponse.status(), await inviteResponse.text()).toBe(201);
-    const { shortLink } = await inviteResponse.json() as { shortLink: string };
+    const { shortLink, inviteId } = await inviteResponse.json() as { shortLink: string; inviteId: string };
 
     const guestPage = await guest.newPage();
     await guestPage.goto(shortLink);
@@ -37,6 +37,13 @@ test('fictional invite, RSVP, admin seating, Hebrew search and PDF export', asyn
     await guestPage.getByRole('button', { name: 'מאשרים ומתחילים להתרגש' }).click();
     await expect(guestPage.getByRole('heading', { name: 'יש! נתראה ברחבה.' })).toBeVisible();
     await capture(guestPage, '02-rsvp');
+    const revoked = await admin.request.post('/api/admin/invites/control', {
+      data: { inviteId, revoke: true },
+      headers: { Origin: baseURL! },
+    });
+    expect(revoked.status(), await revoked.text()).toBe(200);
+    await guestPage.goto(shortLink);
+    await expect(guestPage.getByText('ההזמנה האישית לא נטענה')).toBeVisible();
 
     // Keep repeated local runs deterministic without touching any real data.
     const seatingResponse = await admin.request.get('/api/admin/seating');
