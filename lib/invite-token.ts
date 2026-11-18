@@ -1,7 +1,10 @@
 import {eventConfig} from './event-config';
 import { getD1Binding } from '@/db';
+import { enforceInviteExpiry } from '@/lib/invite-access';
 import { resolveInviteId } from '@/lib/invite-resolution';
 import { getWeddingRuntimeConfig } from "@/lib/runtime-config";
+
+type DecodedInvite = { details: InviteDetails; embeddedExpiry: number | null };
 
 export type InviteDetails = {
   inviteId: string;
@@ -66,7 +69,7 @@ export async function createShortInviteToken(details: InviteDetails): Promise<st
   return encodeBase64Url(packed);
 }
 
-async function decodeShortInviteToken(token: string, secret: string): Promise<InviteDetails> {
+async function decodeShortInviteToken(token: string, secret: string): Promise<DecodedInvite> {
   const packed = decodeBase64Url(token);
   const tagLength = packed[0] === 3 ? 16 : 8;
   if (packed.length < 15) throw new Error("Malformed short invite token");
@@ -100,18 +103,24 @@ async function decodeShortInviteToken(token: string, secret: string): Promise<In
     }
     const side = eventConfig.legacyInviteSides[sourceCode];
     return {
-      inviteId: `${side}-${String(sourceRow).padStart(4, "0")}`,
-      firstName,
-      fullName: firstName,
-      maxGuests,
-      sourceSheet: sourceCode === 0 ? eventConfig.sheetNames[0] : eventConfig.sheetNames[1],
-      sourceRow,
+      details: {
+        inviteId: `${side}-${String(sourceRow).padStart(4, "0")}`,
+        firstName,
+        fullName: firstName,
+        maxGuests,
+        sourceSheet: sourceCode === 0 ? eventConfig.sheetNames[0] : eventConfig.sheetNames[1],
+        sourceRow,
+      },
+      embeddedExpiry: null,
     };
   }
 
   if (version === 2 || version === 3) {
     const headerLength = version === 3 ? 8 : 4;
-    if (version === 3 && (payload.length < 9 || new DataView(payload.buffer).getUint32(4) <= Math.floor(Date.now() / 1000))) throw new Error("Invitation expired");
+    const embeddedExpiry = version === 3 && payload.byteLength >= 8
+      ? new DataView(payload.buffer, payload.byteOffset, payload.byteLength).getUint32(4)
+      : null;
+    if (version === 3 && (payload.length < 9 || embeddedExpiry === null || embeddedExpiry <= Math.floor(Date.now() / 1000))) throw new Error("Invitation expired");
     const maxGuests = payload[2];
     const inviteIdLength = payload[3];
     if (inviteIdLength < 3 || inviteIdLength > 64 || headerLength + inviteIdLength >= payload.length) {
@@ -131,12 +140,15 @@ async function decodeShortInviteToken(token: string, secret: string): Promise<In
       throw new Error("Invalid short invite payload");
     }
     return {
-      inviteId,
-      firstName,
-      fullName: firstName,
-      maxGuests,
-      sourceSheet: sourceCode === 0 ? eventConfig.sheetNames[0] : eventConfig.sheetNames[1],
-      sourceRow: null,
+      details: {
+        inviteId,
+        firstName,
+        fullName: firstName,
+        maxGuests,
+        sourceSheet: sourceCode === 0 ? eventConfig.sheetNames[0] : eventConfig.sheetNames[1],
+        sourceRow: null,
+      },
+      embeddedExpiry,
     };
   }
 
@@ -170,17 +182,20 @@ function isInviteDetails(value: unknown): value is InviteDetails {
   );
 }
 
-async function decodeOriginalInviteToken(token: string): Promise<InviteDetails> {
+async function decodeOriginalInviteToken(token: string): Promise<DecodedInvite> {
   const { inviteTokenSecret, inviteShortTokenSecret } = getWeddingRuntimeConfig();
 
   if (!inviteTokenSecret && !inviteShortTokenSecret && token === "preview") {
     return {
-      inviteId: "preview-invite",
-      firstName: eventConfig.previewGuestName.split(' ')[0],
-      fullName: eventConfig.previewGuestName,
-      maxGuests: 3,
-      sourceSheet: eventConfig.sheetNames[0],
-      sourceRow: 2,
+      details: {
+        inviteId: "preview-invite",
+        firstName: eventConfig.previewGuestName.split(' ')[0],
+        fullName: eventConfig.previewGuestName,
+        maxGuests: 3,
+        sourceSheet: eventConfig.sheetNames[0],
+        sourceRow: 2,
+      },
+      embeddedExpiry: null,
     };
   }
 
@@ -207,17 +222,22 @@ async function decodeOriginalInviteToken(token: string): Promise<InviteDetails> 
   );
   const invite = JSON.parse(new TextDecoder().decode(decrypted)) as unknown;
   if (!isInviteDetails(invite)) throw new Error("Invalid invite payload");
-  return invite;
+  return { details: invite, embeddedExpiry: null };
 }
 
 export async function decodeInviteToken(token:string):Promise<InviteDetails> {
  const deadline=getWeddingRuntimeConfig().inviteTokensExpireAt;
  if(deadline && (!Number.isFinite(Date.parse(deadline)) || Date.now()>=Date.parse(deadline)))throw new Error('Invitations expired');
- const details=await decodeOriginalInviteToken(token);
- if(token==='preview')return details;
- const canonicalId=await resolveInviteId(details.inviteId);
- if(canonicalId===details.inviteId)return details;
- const source=await getD1Binding().prepare('SELECT document FROM seating_sources WHERE id=1').first<{document:string}>();
- for(const range of source?JSON.parse(source.document):[])for(const [index,row] of (range.values??[]).entries())if(index>0&&String(row[8]??'').trim()===canonicalId){const sourceSheet=range.range.startsWith(`'${eventConfig.sheetNames[1]}'!`)||range.range.startsWith(`${eventConfig.sheetNames[1]}!`)?eventConfig.sheetNames[1]:eventConfig.sheetNames[0];return {...details,inviteId:canonicalId,firstName:String(row[1]??'').trim(),fullName:[row[1],row[2]].filter(Boolean).join(' '),sourceSheet,sourceRow:index+1};}
- throw new Error('לא נמצאה ההזמנה שאליה אוחד הקישור');
+ const decoded=await decodeOriginalInviteToken(token);
+ if(token==='preview')return decoded.details;
+ const canonicalId=await resolveInviteId(decoded.details.inviteId);
+ let details=decoded.details;
+ if(canonicalId!==details.inviteId){
+  const source=await getD1Binding().prepare('SELECT document FROM seating_sources WHERE id=1').first<{document:string}>();
+  let found=false;
+  for(const range of source?JSON.parse(source.document):[])for(const [index,row] of (range.values??[]).entries())if(index>0&&String(row[8]??'').trim()===canonicalId){const sourceSheet=range.range.startsWith(`'${eventConfig.sheetNames[1]}'!`)||range.range.startsWith(`${eventConfig.sheetNames[1]}!`)?eventConfig.sheetNames[1]:eventConfig.sheetNames[0];details={...details,inviteId:canonicalId,firstName:String(row[1]??'').trim(),fullName:[row[1],row[2]].filter(Boolean).join(' '),sourceSheet,sourceRow:index+1};found=true;}
+  if(!found)throw new Error('לא נמצאה ההזמנה שאליה אוחד הקישור');
+ }
+ await enforceInviteExpiry(details.inviteId, decoded.embeddedExpiry);
+ return details;
 }

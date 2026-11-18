@@ -85,12 +85,18 @@ For your own event, copy `.dev.vars.example` into `.dev.vars` in a separate chec
 | `ADMIN_EMAILS` | First email is the authenticated admin identity; required for admin authorization in production. |
 | `INVITE_TOKEN_SECRET`, `INVITE_SHORT_TOKEN_SECRET` | Independent 32-byte Base64URL secrets for invitation links and seating tickets. |
 | `INVITE_TOKEN_TTL_SECONDS` | New v3 invite lifetime, default 7776000 seconds (90 days), maximum 31536000. |
+| `LEGACY_INVITE_TTL_SECONDS` | Lifetime of v1/v2 and AES-GCM links, measured from the first successful open. Default 7776000. `0` keeps those links from auto-expiring. |
 | `INVITE_TOKENS_EXPIRE_AT` | Optional ISO UTC deadline that closes all invitation formats; set it for your event. |
+| `REQUIRE_INVITE_TOKEN` | Default on for a real event: RSVP requires a signed invite. `0` allows the open form. The demo still requires a fictional invite. |
 | `SEATING_TOKEN_EPOCH` | Change this value to revoke outstanding seating cards. |
 | `SEATING_SHEETS_WEBHOOK_URL` | POST endpoint returning `{ "valueRanges": [{ "range": "'מוזמנים דנה'!A1:T4", "values": [...] }, ...] }`. |
 | `MAKE_WEBHOOK_URL` | POST endpoint receiving RSVP, opening and seating updates. |
-| `SEATING_SYNC_SECRET`, `WHATSAPP_RSVP_SECRET` | Bearer secrets for service endpoints. |
-| `AUTH_MODE` | Defaults to standalone Basic auth. `sites` trusts identity injected by the Sites dispatch layer. Never use `sites` on a directly exposed Worker. |
+| `SEATING_SYNC_SECRET`, `WHATSAPP_RSVP_SECRET` | Bearer secrets for service endpoints. Each is also the HMAC key for that endpoint. |
+| `WEBHOOK_HMAC_REQUIRED` | `1` requires `X-Webhook-Signature` on inbound service calls. Unset keeps missing signatures working. |
+| `MAKE_WEBHOOK_HMAC_SECRET` | When set, outbound Make posts include a body signature. |
+| `SITES_DISPATCH_SECRET` | Shared secret the Sites dispatch layer must send as `X-Sites-Dispatch`. Required before `AUTH_MODE=sites` will serve admin routes on a real event (`DEMO_MODE=0`). |
+| `GUEST_DATA_RETENTION_AT` | ISO UTC instant after which the daily cron deletes guest data. Leave empty until you choose a date. |
+| `AUTH_MODE` | Defaults to standalone Basic auth. `sites` trusts identity injected by the Sites dispatch layer. On `DEMO_MODE=0` that mode is refused unless `SITES_DISPATCH_SECRET` matches. |
 
 Generate each secret independently. Invitation signing/encryption secrets must be 32 random bytes encoded as Base64URL, for example `node -e "console.log(require('node:crypto').randomBytes(32).toString('base64url'))"`. Do not reuse demo credentials for your event.
 
@@ -102,7 +108,7 @@ A personal invitation with a positive `maxGuests` enforces that limit in both th
 
 ### Sheets contract
 
-The read webhook returns `valueRanges` for tabs matching `eventConfig.sheetNames`, each with a header and rows A:T. Relevant columns: D phone, E invited count, G guest number, I stable invite ID, J RSVP status, K confirmed count, T table number. `MAKE_WEBHOOK_URL` receives JSON events with `schemaVersion` and `event`. For `seating.updated`, locate the row by `inviteId` and `sourceSheet`, write integer `tableNumber` to T or clear it when the value is `""`, and respond `{ "ok": true, "event": "seating.updated" }` only after a successful write. The application leases synchronization, tracks a snapshot and retries pending changes. Implement and secure the external scenario separately. Inbound service calls require bearer auth plus fresh timestamp and nonce headers; migrate callers according to [the webhook protocol](docs/WEBHOOK_PROTOCOL.md) before deploying. Browser admin sync continues to use Basic auth.
+The read webhook returns `valueRanges` for tabs matching `eventConfig.sheetNames`, each with a header and rows A:T. Relevant columns: D phone, E invited count, G guest number, I stable invite ID, J RSVP status, K confirmed count, T table number. `MAKE_WEBHOOK_URL` receives JSON events with `schemaVersion` and `event`. For `seating.updated`, locate the row by `inviteId` and `sourceSheet`, write integer `tableNumber` to T or clear it when the value is `""`, and respond `{ "ok": true, "event": "seating.updated" }` only after a successful write. The application leases synchronization, tracks a snapshot and retries pending changes. Implement and secure the external scenario separately. Inbound service calls require bearer auth plus fresh timestamp and nonce headers. Set `WEBHOOK_HMAC_REQUIRED=1` after callers send `X-Webhook-Signature`, as described in [the webhook protocol](docs/WEBHOOK_PROTOCOL.md). Browser admin sync continues to use Basic auth.
 
 ## Deploy your own
 
@@ -113,7 +119,7 @@ To reproduce the mobile screenshots, start the fictional demo on port 4173, inst
 ## Deploy on Cloudflare
 
 1. Authenticate your own Cloudflare account with `npx wrangler login`. Create a separate D1 database: `npx wrangler d1 create wedding-rsvp-seating`. Put its ID and name in `wrangler.jsonc`; Vite uses that same configuration.
-2. Set deployed secrets with `npx wrangler secret put NAME`, including independent signing and Basic auth secrets. Configure `ADMIN_EMAILS`, `AUTH_MODE=basic`, `DEMO_MODE=0`, HTTPS and integration endpoints in your Worker environment. A public demo requires its own D1 database and separate write protection or reset policy.
+2. Set deployed secrets with `npx wrangler secret put NAME`, including independent signing and Basic auth secrets. Use two different passwords of at least 12 characters. Configure `ADMIN_EMAILS`, `AUTH_MODE=basic`, `DEMO_MODE=0`, HTTPS and integration endpoints in your Worker environment. Set `GUEST_DATA_RETENTION_AT` when you know the deletion date, and `WEBHOOK_HMAC_REQUIRED=1` after Make sends signatures. A public demo requires its own D1 database and separate write protection or reset policy.
 3. Apply migrations with `npx wrangler d1 migrations apply wedding-rsvp-seating --remote`.
 4. Run `npm run typecheck && npm run lint && npm test`, then `npx vinext deploy`. Verify the assigned Worker URL, protected routes and a test RSVP before distributing links.
 
@@ -121,17 +127,17 @@ The checked-in migrations retain the original schema history. `.openai/hosting.j
 
 ## Security and privacy
 
-The Worker uses request-local D1 bindings and configuration so concurrent requests do not mix secrets. Standalone mode strips client-supplied identity headers and protects admin and table-finder routes. Demo mode contains only fictional records. Staff search returns names, tables and signed seating tickets, so restrict staff credentials. D1 rate limiting protects public RSVP and invitation endpoints; add edge controls and monitoring for a real deployment. Set a retention policy and follow the [guest-data deletion procedure](docs/DATA_RETENTION.md), rotate credentials after the event and use separate staging and production databases. HTTP Basic credentials may remain cached in a browser session.
+The Worker uses request-local D1 bindings and configuration so concurrent requests do not mix secrets. Standalone mode strips client-supplied identity headers and protects admin and table-finder routes with HTTPS, separate passwords and a short lockout. Demo mode contains only fictional records. Staff search returns names, tables and signed seating tickets, so restrict staff credentials. Real RSVPs require a personal invite unless `REQUIRE_INVITE_TOKEN=0`. D1 rate limiting protects public RSVP and invitation endpoints; add edge controls and monitoring for a real deployment. Set `GUEST_DATA_RETENTION_AT` and follow the [guest-data deletion procedure](docs/DATA_RETENTION.md), rotate credentials after the event and use separate staging and production databases. HTTP Basic credentials may remain cached in a browser session.
 
 See [SECURITY.md](SECURITY.md), [release verification](docs/RELEASE_VERIFICATION.md) and [CONTRIBUTING.md](CONTRIBUTING.md). MIT licensed; font files in `public/fonts/` retain their SIL OFL notices.
 
 ## Known limitations
 
-The general RSVP form accepts submissions without an invitation link. New invitations expire; legacy links require an event-wide deadline or key rotation to close them. Individual invite revocation and seating-card epoch revocation are documented in [token lifecycle](docs/TOKEN_LIFECYCLE.md). External Make/Sheets scenarios are not bundled. HTTP Basic authentication and D1 rate limits need additional operational controls for a real event. See [SECURITY.md](SECURITY.md) for the complete limitations. The live demo is shared and may be reset; it is not a persistent event workspace.
+A real event rejects RSVPs that do not carry a signed invite. Legacy links expire after their first open unless you disable that timer, and one invite can be revoked in the admin UI. Details are in [token lifecycle](docs/TOKEN_LIFECYCLE.md). External Make/Sheets scenarios are not bundled; turn on body signatures when those callers are ready. Basic authentication now requires HTTPS and a lockout, and it is still weaker than a dedicated identity provider. See [SECURITY.md](SECURITY.md) for the remaining limitations. The live demo is shared and may be reset; it is not a persistent event workspace.
 
 ## Roadmap
 
-- A UI for token revocation and migration away from legacy invitation formats.
-- Stronger admin identity, a read-only or periodically reset hosted demo.
-- Signed integration payloads, retention jobs and edge abuse monitoring.
+- Migration of remaining legacy invitation links onto v3 before their stored expiry.
+- A dedicated identity provider in place of HTTP Basic for standalone admin.
+- Edge abuse monitoring in front of the D1 rate limits.
 - Further separation of the larger admin planners as their workflows evolve.

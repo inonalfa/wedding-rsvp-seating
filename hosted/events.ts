@@ -100,6 +100,16 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
     return seatingPage(request, env.HOSTED_DB, env.HOSTED_ORIGIN, ownerId, event.event_id, event.title, !!seatingMatch[2], now);
   }
 
+  const revokeMatch = url.pathname.match(/^\/events\/([0-9a-f-]{36})\/invites\/([0-9a-f-]{36})\/revoke$/);
+  if (request.method === "POST" && revokeMatch) {
+    if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+      return page("הבקשה נחסמה", "", 403);
+    }
+    const revoked = await store.event(revokeMatch[1]).revokeInvitation(revokeMatch[2]);
+    if (!revoked) return page("ההזמנה לא נמצאה", "", 404);
+    return redirectTo("/events/" + revokeMatch[1]);
+  }
+
   if (request.method !== "GET") return page("העמוד לא נמצא", "", 404);
   const staffMatch = url.pathname.match(/^\/events\/([0-9a-f-]{36})\/staff-link$/);
   if (staffMatch) {
@@ -131,7 +141,7 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
     const purge = new Intl.DateTimeFormat("he-IL", { timeZone: event.time_zone, dateStyle: "long" }).format(event.purge_at);
     const after = url.searchParams.get("after") ?? "";
     const guests = await scoped.guests(after.length === 36 ? after : "");
-    const list = guests.map(guest => `<li>${escapeHtml(guest.name)} (${guest.max_guests}) · ${guest.attendance === "yes" ? `אישרו: ${guest.guest_count}` : guest.attendance === "no" ? "לא מגיעים" : "ממתינים לתשובה"}${env.HOSTED_INVITE_SECRET ? ` <a href="/events/${match[1]}/invites/${encodeURIComponent(guest.guest_id)}">קישור להזמנה</a>` : ""}</li>`).join("");
+    const list = guests.map(guest => `<li>${escapeHtml(guest.name)} (${guest.max_guests}) · ${guest.attendance === "yes" ? `אישרו: ${guest.guest_count}` : guest.attendance === "no" ? "לא מגיעים" : "ממתינים לתשובה"}${env.HOSTED_INVITE_SECRET ? ` <a href="/events/${match[1]}/invites/${encodeURIComponent(guest.guest_id)}">קישור להזמנה</a> <form method="post" action="/events/${match[1]}/invites/${encodeURIComponent(guest.guest_id)}/revoke"><button>ביטול קישור</button></form>` : ""}</li>`).join("");
     const next = guests.length === 100 ? `<a href="?after=${encodeURIComponent(guests[99].guest_id)}">עוד מוזמנים</a>` : "";
     return page(event.title, `<p>תאריך האירוע: <time>${escapeHtml(event.event_date)}</time></p><p>מחיקה מתוכננת: ${escapeHtml(purge)}</p><p><a href="/events/${match[1]}/seating">סידורי הושבה</a>${env.HOSTED_INVITE_SECRET ? ` · <a href="/events/${match[1]}/staff-link">קישור לחיפוש שולחן לצוות</a>` : ""}</p>${retentionNotice(event.event_id, event.purge_at, now)}<p><a href="/events/${event.event_id}/connections">חיבורים אופציונליים</a></p><h2>מוזמנים</h2><ul>${list}</ul>${next}<form method="post" action="/events/${match[1]}/guests" enctype="multipart/form-data"><p>השתמשו בקובץ CSV עם הכותרת <code dir="ltr">name,max_guests</code>.</p><label>קובץ מוזמנים <input type="file" name="guests" accept=".csv,text/csv" required></label> <button>ייבוא מוזמנים</button></form><a href="/">כל האירועים</a>`);
   }

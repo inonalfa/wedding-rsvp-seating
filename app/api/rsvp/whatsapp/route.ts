@@ -7,6 +7,7 @@ import { decodeInviteToken } from "@/lib/invite-token";
 import { rsvpGuestLimit } from "@/lib/rsvp-form";
 
 import { claimWebhookRequest } from "@/lib/webhook-replay";
+import { verifyWebhookBodySignature, withWebhookSignature } from "@/lib/webhook-signature";
 
 type WhatsappRsvp = {
   inviteId?: unknown;
@@ -77,13 +78,19 @@ export async function POST(request: Request) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  let payload: WhatsappRsvp;
+  let text = "";
+  try {
+    text = await request.text();
+    if (text.length > 300_000) return Response.json({ error: "Payload too large" }, { status: 413 });
+  } catch {
+    return Response.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+  const signature = await verifyWebhookBodySignature(request, text, secret, getWeddingRuntimeConfig().webhookHmacRequired === true);
+  if (signature) return signature;
   const denied = await claimWebhookRequest(request, "whatsapp-rsvp");
   if (denied) return denied;
-
-  let payload: WhatsappRsvp;
   try {
-    const text = await request.text();
-    if (text.length > 300_000) return Response.json({ error: "Payload too large" }, { status: 413 });
     payload = JSON.parse(text) as WhatsappRsvp;
     if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Invalid payload');
   } catch {
@@ -145,10 +152,7 @@ export async function POST(request: Request) {
     let syncError = "";
     if (makeWebhookUrl) {
       try {
-        const response = await fetch(makeWebhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const webhookBody = JSON.stringify({
             schemaVersion: 3, event: "rsvp.updated", source: "whatsapp",
             inviteId, lookupColumn: "I", lookupValue: inviteId,
             sourceSheet: invite.sourceSheet, rowNumber: invite.sourceRow,
@@ -157,7 +161,11 @@ export async function POST(request: Request) {
             attendanceHe: attendance === "yes" ? "מאשרים" : "לא מגיעים",
             guestCount, maxGuests: invite.maxGuests, message: values.message,
             submittedAt: now,
-          }),
+        });
+        const response = await fetch(makeWebhookUrl, {
+          method: "POST",
+          headers: await withWebhookSignature(webhookBody),
+          body: webhookBody,
           signal: AbortSignal.timeout(7_000),
         });
         if (!response.ok) throw new Error(`Webhook returned ${response.status}`);

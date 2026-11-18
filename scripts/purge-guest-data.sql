@@ -11,6 +11,8 @@ DELETE FROM rsvps;
 DELETE FROM generated_invites;
 DELETE FROM rsvp_reconciliations;
 DELETE FROM rsvp_invite_resolutions;
+DELETE FROM invite_controls;
+DELETE FROM auth_lockouts;
 DELETE FROM seating_sketches;
 DELETE FROM seating_plans;
 DELETE FROM seating_sources;

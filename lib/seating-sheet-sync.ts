@@ -3,6 +3,7 @@ import {getWeddingRuntimeConfig} from '@/lib/runtime-config';
 import {loadSeatingData} from '@/lib/seating-data';
 import {validatePlan,type SeatingPlan,type SheetRange} from '@/lib/seating-model';
 import {sheetSeats,pendingSheetSeats,type SeatSnapshot} from '@/lib/seating-sheet-model';
+import {withWebhookSignature} from '@/lib/webhook-signature';
 
 export type SheetSyncResult={synced:number;pending:number;busy?:boolean;error?:string};
 export async function syncSeatingSheets(refresh=false,limit=25):Promise<SheetSyncResult>{
@@ -31,7 +32,8 @@ export async function syncSeatingSheets(refresh=false,limit=25):Promise<SheetSyn
    await db.prepare('UPDATE seating_sheet_sync SET lease_until=? WHERE id=1 AND lease_token=?').bind(Date.now()+90_000,token).run();
    const batch=pending.slice(0,Math.min(5,limit-synced));
    const results=await Promise.allSettled(batch.map(async row=>{
-    const response=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({schemaVersion:1,event:'seating.updated',inviteId:row.inviteId,sourceSheet:row.sourceSheet,tableNumber:row.tableNumber??''}),signal:AbortSignal.timeout(15_000)});
+    const webhookBody=JSON.stringify({schemaVersion:1,event:'seating.updated',inviteId:row.inviteId,sourceSheet:row.sourceSheet,tableNumber:row.tableNumber??''});
+    const response=await fetch(url,{method:'POST',headers:await withWebhookSignature(webhookBody),body:webhookBody,signal:AbortSignal.timeout(15_000)});
     if(!response.ok)throw new Error('Sheet update failed');
     const ack=await response.json() as {ok?:boolean;event?:string};
     if(ack.ok!==true||ack.event!=='seating.updated')throw new Error('Sheet update not confirmed');

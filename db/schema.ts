@@ -159,3 +159,15 @@ export const webhookNonces = sqliteTable('webhook_nonces', {
   key: text('key').primaryKey(),
   expiresAt: integer('expires_at').notNull(),
 }, table => [index('webhook_nonces_expiry_idx').on(table.expiresAt)]);
+
+export const inviteControls = sqliteTable("invite_controls", {
+  inviteId: text("invite_id").primaryKey(),
+  expiresAt: integer("expires_at"),
+  revokedAt: text("revoked_at"),
+});
+
+export const authLockouts = sqliteTable("auth_lockouts", {
+  key: text("key").primaryKey(),
+  failures: integer("failures").notNull(),
+  lockedUntil: integer("locked_until").notNull(),
+});

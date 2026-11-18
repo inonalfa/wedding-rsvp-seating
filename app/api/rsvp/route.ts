@@ -5,7 +5,9 @@ import { decodeInviteToken, type InviteDetails } from "@/lib/invite-token";
 import { getWeddingRuntimeConfig } from "@/lib/runtime-config";
 import { formatWebhookDateTime } from "@/lib/webhook-date";
 
+import { personalInviteRequired } from "@/lib/rsvp-policy";
 import { rsvpGuestLimit } from "@/lib/rsvp-form";
+import { withWebhookSignature } from "@/lib/webhook-signature";
 
 type RSVPRequest = {
   fullName?: unknown;
@@ -46,8 +48,12 @@ export async function POST(request: Request) {
     }
 
     const { demoMode } = getWeddingRuntimeConfig();
-    if (demoMode && !invite) {
-      return Response.json({ error: "בסביבת ההדגמה ניתן לעדכן רק הזמנה פיקטיבית קיימת" }, { status: 400 });
+    if (!invite && (demoMode || personalInviteRequired())) {
+      return Response.json({
+        error: demoMode
+          ? "בסביבת ההדגמה ניתן לעדכן רק הזמנה פיקטיבית קיימת"
+          : "אישור הגעה מתקבל רק מקישור הזמנה אישי",
+      }, { status: 400 });
     }
     const submittedName = cleanText(payload.fullName, 80);
     const fullName = demoMode ? invite!.fullName : submittedName;
@@ -117,10 +123,7 @@ export async function POST(request: Request) {
 
     if (makeWebhookUrl) {
       try {
-        const webhookResponse = await fetch(makeWebhookUrl, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
+        const webhookBody = JSON.stringify({
             schemaVersion: 3,
             event: "rsvp.updated",
             inviteId: invite?.inviteId ?? null,
@@ -137,7 +140,11 @@ export async function POST(request: Request) {
             maxGuests: null,
             message,
             submittedAt: formatWebhookDateTime(now),
-          }),
+        });
+        const webhookResponse = await fetch(makeWebhookUrl, {
+          method: "POST",
+          headers: await withWebhookSignature(webhookBody),
+          body: webhookBody,
           signal: AbortSignal.timeout(7_000),
         });
         if (!webhookResponse.ok) {

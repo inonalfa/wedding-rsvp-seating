@@ -10,10 +10,23 @@ export interface AuthEnv extends AbuseEnv, UsageEnv {
   GOOGLE_CLIENT_SECRET?: string;
   HOSTED_AUTH_SECRET?: string;
   HOSTED_INVITE_SECRET?: string;
+  HOSTED_CONNECTOR_HMAC?: string;
 }
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
+export function hostedOriginAllowed(origin: string | undefined) {
+  if (!origin) return true;
+  try {
+    const url = new URL(origin);
+    if (url.protocol === "https:") return true;
+    const host = url.hostname.replace(/^\[|\]$/g, "");
+    return url.protocol === "http:" && (host === "localhost" || host === "127.0.0.1" || host === "::1");
+  } catch {
+    return false;
+  }
+}
+
 const sessionCookie = "__Host-hosted_session";
 const loginCookie = "__Host-hosted_login";
 const sessionAgeMs = 86_400_000;
