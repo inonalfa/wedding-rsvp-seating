@@ -77,6 +77,7 @@ async function run() {
     const config = join(work, "wrangler.jsonc");
     const secretFile = join(work, "secrets.json");
     writeFileSync(config, JSON.stringify({ ...base, account_id: account, main: "../worker.ts", vars,
+      assets: { ...base.assets, directory: "../public" },
       d1_databases: [{ ...binding, database_id: database, migrations_dir: "../migrations" }] }), { mode: 0o600 });
     writeFileSync(secretFile, JSON.stringify(secrets), { mode: 0o600 });
     wrangler("d1", "migrations", "apply", binding.database_name, "--remote", "--config", relative(root, config));

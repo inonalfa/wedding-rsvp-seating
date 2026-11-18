@@ -1,0 +1,51 @@
+/* Guest invitation. Scoped under .inv so the owner app can embed previews. */
+body.invite-page { background: #f4f1ea; }
+.inv { --i-bg: #fbf9f4; --i-ink: #1d2b25; --i-soft: #56635d; --i-accent: #1f4d3d; --i-accent-ink: #fff; --i-gold: #b8945a; --i-hero: linear-gradient(160deg, #183d30 0%, #2e6650 60%, #4b8a70 100%);
+  background: var(--i-bg); color: var(--i-ink); font-family: "Heebo", system-ui, sans-serif; line-height: 1.6; max-width: 640px; margin: 0 auto; min-height: 100%; overflow: hidden; }
+.inv.theme-night { --i-bg: #f6f6fb; --i-ink: #1b1f33; --i-soft: #555b75; --i-accent: #27305c; --i-gold: #c9a96a; --i-hero: linear-gradient(160deg, #141a38 0%, #2a3470 65%, #4a4f8f 100%); }
+.inv.theme-blush { --i-bg: #fdf8f6; --i-ink: #3a2427; --i-soft: #7a5a5e; --i-accent: #9c4f5c; --i-gold: #b98b5e; --i-hero: linear-gradient(160deg, #7c3c48 0%, #b56d78 60%, #dba7a5 100%); }
+.inv h1, .inv h2 { font-family: "Frank Ruhl Libre", serif; font-weight: 400; margin: 0 0 .4em; line-height: 1.15; }
+.inv-hero { position: relative; color: #fff; background: var(--i-hero); min-height: min(88vh, 720px); display: flex; align-items: flex-end; text-align: center; }
+.inv-cover { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.inv-hero.has-cover::after { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,.72) 0%, rgba(0,0,0,.25) 55%, rgba(0,0,0,.05) 100%); }
+.inv-hero-inner { position: relative; z-index: 1; width: 100%; padding: 3rem 1.5rem 2.6rem; }
+.inv-kicker { letter-spacing: .4em; font-size: .8rem; text-transform: uppercase; opacity: .85; margin: 0 0 .6rem; }
+.inv-names { font-size: clamp(2.8rem, 12vw, 4.6rem); display: flex; flex-direction: column; align-items: center; gap: 0; }
+.inv-names i { font-size: .55em; color: #f1dcae; font-style: normal; }
+.inv-date { display: flex; justify-content: center; gap: .8rem; font-size: 1.15rem; margin: .8rem 0; }
+.inv-date span { opacity: .8; border-inline-start: 1px solid rgba(255,255,255,.5); padding-inline-start: .8rem; }
+.inv-greeting { font-size: 1.1rem; margin: 0 0 1.2rem; }
+.inv-btn { display: inline-flex; align-items: center; justify-content: center; min-height: 46px; padding: .55em 1.4em; border-radius: 999px; background: var(--i-accent); color: var(--i-accent-ink);
+  font: inherit; font-weight: 700; text-decoration: none; border: 1px solid var(--i-accent); cursor: pointer; }
+.inv-btn.ghost { background: transparent; color: var(--i-accent); }
+.inv-btn.light { background: #fff; color: var(--i-accent); border-color: #fff; }
+.inv-body { padding: 0 1.25rem 2rem; }
+.inv-section { padding: 2.4rem 0; border-bottom: 1px solid rgba(0,0,0,.07); text-align: center; }
+.inv-eyebrow { color: var(--i-gold); letter-spacing: .25em; font-size: .78rem; font-weight: 700; margin: 0 0 .6rem; }
+.inv-message { font-family: "Frank Ruhl Libre", serif; font-size: 1.3rem; color: var(--i-ink); margin: 0 auto 1.5rem; max-width: 34ch; }
+.inv-schedule { display: flex; justify-content: center; gap: 2.5rem; margin: 1rem 0; }
+.inv-schedule div { display: flex; flex-direction: column; }
+.inv-schedule time { font-family: "Frank Ruhl Libre", serif; font-size: 2rem; color: var(--i-accent); line-height: 1.1; }
+.inv-schedule span { color: var(--i-soft); font-size: .9rem; }
+.inv-families { display: flex; justify-content: center; gap: 2rem; margin-top: 1.4rem; }
+.inv-families div { display: flex; flex-direction: column; }
+.inv-families span { color: var(--i-soft); font-size: .8rem; }
+.inv-photo, .inv-card { margin: 2rem 0 0; }
+.inv-photo img { width: 100%; border-radius: 18px; display: block; max-height: 560px; object-fit: cover; }
+.inv-card { text-align: center; }
+.inv-card img { width: min(100%, 420px); border-radius: 8px; box-shadow: 0 18px 40px rgba(0,0,0,.18); display: block; margin: 0 auto; }
+.inv-card figcaption { color: var(--i-soft); font-size: .8rem; margin-top: .5rem; }
+.inv-venue address { font-style: normal; color: var(--i-soft); margin-bottom: 1rem; }
+.inv-actions, .inv-choice { display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap; }
+.inv-form { display: flex; flex-direction: column; gap: 1rem; max-width: 360px; margin: 1rem auto 0; text-align: start; }
+.inv-form label { display: flex; flex-direction: column; gap: .35rem; font-weight: 700; color: var(--i-soft); font-size: .92rem; }
+.inv-form select, .inv-form textarea { font: inherit; border: 1px solid #cfd2cc; border-radius: 12px; padding: .65em .8em; background: #fff; color: var(--i-ink); min-height: 46px; width: 100%; }
+.inv-choice .inv-btn { flex: 1; }
+.inv-saved { background: #e4f3e9; color: #22663f; border-radius: 12px; padding: .7rem 1rem; font-weight: 700; }
+.inv-current { color: var(--i-soft); }
+.inv-table { font-family: "Frank Ruhl Libre", serif; font-size: 1.6rem; color: var(--i-accent); margin: .4rem 0 1rem; }
+.inv-footer { text-align: center; padding: 2.2rem 0 1rem; font-family: "Frank Ruhl Libre", serif; font-size: 1.4rem; color: var(--i-accent); }
+.inv-contact { font-family: "Heebo", sans-serif; font-size: .9rem; color: var(--i-soft); }
+.mini-preview .inv-hero { min-height: 380px; }
+.mini-preview .inv-names { font-size: 2.6rem; }
+@media (min-width: 700px) { body.invite-page .inv { margin: 2rem auto; border-radius: 28px; box-shadow: 0 30px 80px rgba(0,0,0,.12); } }

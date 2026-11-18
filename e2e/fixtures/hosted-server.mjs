@@ -1,4 +1,6 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { extname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { createHostedWorker } from "../../hosted/worker.ts";
@@ -45,11 +47,21 @@ const jwk = await crypto.subtle.exportKey("jwk", keys.publicKey);
 const b64 = value => Buffer.from(JSON.stringify(value)).toString("base64url");
 const challenges = new Set();
 const usedCodes = new Set();
+const publicDir = fileURLToPath(new URL("../../hosted/public/", import.meta.url));
+const types = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".woff": "font/woff", ".txt": "text/plain" };
+// Mirrors Workers static assets: files under hosted/public are served before the Worker runs.
+const ASSETS = { async fetch(request) {
+  const path = decodeURIComponent(new URL(request.url).pathname);
+  const file = publicDir + path.replace(/^\/+/, "");
+  if (path.includes("..") || !existsSync(file) || !statSync(file).isFile()) return new Response("Not found", { status: 404 });
+  return new Response(readFileSync(file), { headers: { "Content-Type": types[extname(file)] ?? "application/octet-stream", "Cache-Control": "no-cache" } });
+} };
+env.ASSETS = ASSETS;
 const worker = createHostedWorker(async (url, init) => {
   if (url === "https://challenges.cloudflare.com/turnstile/v0/siteverify") {
     const value = init.body.get("response");
     const action = value.split(":")[0];
-    const success = !challenges.has(value) && /^(login|rsvp):[a-f0-9-]{36}$/.test(value);
+    const success = !challenges.has(value) && /^(login|signup|rsvp):[a-f0-9-]{36}$/.test(value);
     challenges.add(value);
     return Response.json({ success, hostname: "127.0.0.1", action });
   }
