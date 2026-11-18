@@ -1,7 +1,7 @@
 import { refreshUsage, usagePage } from "./usage";
 import { connectorSnapshot } from "./connectors";
 import { limited } from "./abuse";
-import { authRoute, sessionOwner, type AuthEnv } from "./auth";
+import { authRoute, hostedOriginAllowed, sessionOwner, type AuthEnv } from "./auth";
 
 import { ownerPage } from "./events";
 import { page } from "./http";
@@ -20,6 +20,9 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
       const url = new URL(request.url);
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ status: "ok" }, { headers: { "Cache-Control": "no-store" } });
+      }
+      if (env.HOSTED_ORIGIN && !hostedOriginAllowed(env.HOSTED_ORIGIN)) {
+        return new Response("HOSTED_ORIGIN must use HTTPS outside localhost", { status: 503, headers: { "Cache-Control": "no-store" } });
       }
       const invite = url.pathname.match(/^\/invite\/([a-zA-Z0-9_.-]{1,160})$/);
       const client = request.headers.get("cf-connecting-ip") ?? "unknown";
