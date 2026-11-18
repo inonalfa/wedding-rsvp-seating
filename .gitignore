@@ -47,3 +47,6 @@ next-env.d.ts
 .dev.vars*
 !.dev.vars.example
 *.tsbuildinfo
+
+# Generated only by the hosted deploy command; never commit local credentials.
+/hosted/.deploy-*/

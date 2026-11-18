@@ -35,6 +35,10 @@ This tour uses fictional demo records. Desktop and mobile screenshots are genera
 
 The hosted demo contains fictional data only and displays a banner on every page. On the homepage, use **Try the demo** to open a runtime-signed fictional invitation and submit the RSVP form end to end. The same box links to the Hebrew table search when it is public; otherwise it explains that staff authentication is required. Admin pages are password-protected with username `admin`; the password is available on request. Integrations are disabled in the demo. Submitted names and notes are discarded in favor of the signed fictional identity, and repeated submissions update the same demo response, so the shared flow remains ready for the next visitor.
 
+## Hosted pilot
+
+The repository also contains a separate, open-source hosted edition for couples to sign in, create an event, import guests, share invitations and arrange seating without installing anything. The hosted edition is designed to be free with explicit limits and no SLA. It is not deployed by this repository. See the [hosted plan](docs/hosted-service-plan.md) and [operator deployment guide](docs/hosted-deploy.md). The existing fictional demo and self-hosted setup below are unchanged.
+
 ## Architecture
 
 ```mermaid

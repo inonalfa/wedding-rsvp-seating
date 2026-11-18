@@ -1,0 +1,1 @@
+ALTER TABLE guests ADD COLUMN invite_version INTEGER NOT NULL DEFAULT 1;
