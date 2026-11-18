@@ -13,6 +13,52 @@ const labels = { worker_requests: "בקשות Workers", d1_reads: "שורות D1
 const metrics = Object.keys(limits) as (keyof typeof limits)[];
 const day = (now: number) => new Date(now).toISOString().slice(0, 10);
 
+export const CLOUDFLARE_ANALYTICS_ENDPOINT = "https://api.cloudflare.com/client/v4/graphql";
+export const HOSTED_USAGE_QUERY = `query HostedUsage($account: string!, $since: Time!, $until: Time!, $d1: ZoneWorkersRequestsFilter_InputObject) {
+  viewer { accounts(filter: { accountTag: $account }) {
+    workersInvocationsAdaptive(limit: 1, filter: { datetime_geq: $since, datetime_leq: $until }) { sum { requests } }
+    d1QueriesAdaptiveGroups(limit: 1, filter: $d1) { sum { rowsRead rowsWritten } }
+  } }
+}`;
+export const HOSTED_USAGE_SCHEMA_QUERY = `query HostedUsageSchema {
+  __type(name: "ZoneWorkersRequestsFilter_InputObject") { name kind inputFields { name } }
+}`;
+
+export function usageVariables(account: string, now: number) {
+  const since = day(now) + "T00:00:00Z";
+  const until = new Date(now).toISOString();
+  return { account, since, until, d1: { datetimeHour_geq: since, datetimeHour_leq: until } };
+}
+
+export function validateUsageSchema(payload: unknown) {
+  const result = payload as { errors?: unknown[]; data?: { __type?: { name?: unknown; kind?: unknown; inputFields?: Array<{ name?: unknown }> } | null } };
+  if (result.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) return false;
+  const type = result.data?.__type;
+  if (!type || type.name !== "ZoneWorkersRequestsFilter_InputObject" || type.kind !== "INPUT_OBJECT" || !Array.isArray(type.inputFields)) return false;
+  const fields = new Set(type.inputFields.map(field => field?.name));
+  return fields.has("datetimeHour_geq") && fields.has("datetimeHour_leq");
+}
+
+export function parseUsagePayload(payload: unknown): [number, number, number] | null {
+  const result = payload as {
+    errors?: unknown[];
+    data?: { viewer?: { accounts?: Array<{
+      workersInvocationsAdaptive?: Array<{ sum?: { requests?: unknown } } | null> | null;
+      d1QueriesAdaptiveGroups?: Array<{ sum?: { rowsRead?: unknown; rowsWritten?: unknown } | null } | null> | null;
+    }> } };
+  };
+  if (result.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) return null;
+  const accounts = result.data?.viewer?.accounts;
+  const account = Array.isArray(accounts) && accounts.length === 1 ? accounts[0] : null;
+  if (!account || !Array.isArray(account.workersInvocationsAdaptive) || !Array.isArray(account.d1QueriesAdaptiveGroups)) return null;
+  if (account.workersInvocationsAdaptive.length !== 1 || account.d1QueriesAdaptiveGroups.length !== 1) return null;
+  const workers = account.workersInvocationsAdaptive[0]?.sum?.requests;
+  const d1 = account.d1QueriesAdaptiveGroups[0]?.sum;
+  const values = [workers, d1?.rowsRead, d1?.rowsWritten];
+  const validCount = (value: unknown): value is number => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+  return values.every(validCount) ? values as [number, number, number] : null;
+}
+
 export async function refreshUsage(env: UsageEnv, now: number, fetcher: typeof fetch = fetch) {
   const ok = await collectUsage(env, now, fetcher);
   if (!ok) {
@@ -24,39 +70,16 @@ export async function refreshUsage(env: UsageEnv, now: number, fetcher: typeof f
 
 async function collectUsage(env: UsageEnv, now: number, fetcher: typeof fetch) {
   if (!env.CF_ACCOUNT_ID || !env.CF_ANALYTICS_TOKEN) return false;
-  const query = `query HostedUsage($account: string!, $since: Time!, $until: Time!, $d1: ZoneWorkersRequestsFilter_InputObject) {
-    viewer { accounts(filter: { accountTag: $account }) {
-      workersInvocationsAdaptive(limit: 1, filter: { datetime_geq: $since, datetime_leq: $until }) { sum { requests } }
-      d1QueriesAdaptiveGroups(limit: 1, filter: $d1) { sum { rowsRead rowsWritten } }
-    } }
-  }`;
-  const since = day(now) + "T00:00:00Z";
-  const until = new Date(now).toISOString();
   try {
-    const response = await fetcher("https://api.cloudflare.com/client/v4/graphql", {
+    const response = await fetcher(CLOUDFLARE_ANALYTICS_ENDPOINT, {
       method: "POST", headers: { Authorization: "Bearer " + env.CF_ANALYTICS_TOKEN, "Content-Type": "application/json" },
-      body: JSON.stringify({ query, variables: { account: env.CF_ACCOUNT_ID, since, until,
-        d1: { datetimeHour_geq: since, datetimeHour_leq: until } } }),
+      body: JSON.stringify({ query: HOSTED_USAGE_QUERY, variables: usageVariables(env.CF_ACCOUNT_ID, now) }),
       signal: AbortSignal.timeout(5000),
     });
     if (!response.ok) return false;
-    const payload = await response.json() as {
-      errors?: unknown[];
-      data?: { viewer: { accounts: Array<{
-        workersInvocationsAdaptive: { sum: { requests: number } }[];
-        d1QueriesAdaptiveGroups: { sum: { rowsRead: number; rowsWritten: number } }[];
-      }> } };
-    };
-    const accounts = payload.data?.viewer?.accounts;
-    const account = Array.isArray(accounts) && accounts.length === 1 ? accounts[0] : null;
-    if (payload.errors !== undefined && (!Array.isArray(payload.errors) || payload.errors.length !== 0)) return false;
-    if (!account || !Array.isArray(account.workersInvocationsAdaptive) || !Array.isArray(account.d1QueriesAdaptiveGroups)) return false;
-    if (account.workersInvocationsAdaptive.length !== 1 || account.d1QueriesAdaptiveGroups.length !== 1) return false;
-    const workers = account.workersInvocationsAdaptive[0]?.sum?.requests;
-    const d1 = account.d1QueriesAdaptiveGroups[0]?.sum;
-    const values = [workers, d1?.rowsRead, d1?.rowsWritten];
+    const values = parseUsagePayload(await response.json());
     const validCount = (value: unknown) => typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
-    if (!values.every(validCount)) return false;
+    if (!values) return false;
     const result = await env.HOSTED_DB.prepare("SELECT id FROM usage_snapshot WHERE id=1").bind().run();
     if (!validCount(result.meta.size_after)) return false;
     await env.HOSTED_DB.prepare(`INSERT INTO usage_snapshot
