@@ -67,6 +67,7 @@ function runtimeConfig(env: Env): WeddingRuntimeConfig {
     whatsappRsvpSecret: env.WHATSAPP_RSVP_SECRET,
     seatingSyncSecret: env.SEATING_SYNC_SECRET,
     demoMode: env.DEMO_MODE === "1",
+    demoAuth: env.DEMO_AUTH === "1",
     authMode: env.AUTH_MODE,
     requireInviteToken: env.REQUIRE_INVITE_TOKEN,
     webhookHmacRequired: env.WEBHOOK_HMAC_REQUIRED === "1",

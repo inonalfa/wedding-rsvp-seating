@@ -32,8 +32,12 @@ test('demo RSVP stores only the signed fictional identity and rejects the open f
     assert.equal(open.status, 400);
     const signed = await fixture.request('/api/rsvp', { body: { fullName: 'Real Person', attendance: 'yes', guestCount: 1, message: 'real note', inviteToken: token() } });
     assert.equal(signed.status, 201, await signed.clone().text());
+    const repeated = await fixture.request('/api/rsvp', { body: { fullName: 'Another Real Person', attendance: 'yes', guestCount: 2, message: 'another real note', inviteToken: token() } });
+    assert.equal(repeated.status, 201, await repeated.clone().text());
     const stored = fixture.sql.prepare('SELECT full_name, message FROM rsvp_responses').get();
     assert.equal(stored.full_name, 'Demo Guest');
     assert.equal(stored.message, '');
+    assert.equal(fixture.sql.prepare('SELECT count(*) AS n FROM rsvp_responses').get().n, 1);
+    assert.equal(fixture.sql.prepare('SELECT guest_count FROM rsvp_responses').get().guest_count, 2);
   } finally { fixture.sql.close(); }
 });

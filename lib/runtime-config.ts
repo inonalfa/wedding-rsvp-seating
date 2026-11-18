@@ -13,6 +13,7 @@ export type WeddingRuntimeConfig = {
   whatsappRsvpSecret?: string;
   seatingSyncSecret?: string;
   demoMode?: boolean;
+  demoAuth?: boolean;
   authMode?: string;
   requireInviteToken?: string;
   webhookHmacRequired?: boolean;
