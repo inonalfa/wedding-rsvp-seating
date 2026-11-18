@@ -434,9 +434,10 @@ function accountMenu() {
   const ev = S.data.event;
   return `<div class="menu-wrap"><button class="menu-account" type="button" data-action="toggle-menu" data-menu="account" aria-expanded="false" aria-haspopup="true">${esc(label)}</button>
     <div class="menu-pop" data-pop="account" hidden>
-      <p class="muted small">${a.method === "password" ? "כניסה עם שם משתמש" : "כניסה עם Google"}</p>
+      <p class="muted small">${a.method === "password" ? "כניסה עם שם משתמש" : "מחוברים עם Google"}</p>
       ${ev ? `<a class="btn ghost block" href="/events/${esc(ev.id)}/data">ייצוא או מחיקת נתונים</a><a class="btn ghost block" href="/events/${esc(ev.id)}/reminder">תזכורת ביומן לפני מחיקה</a>` : ""}
       <form method="post" action="/auth/logout"><button class="btn ghost block">התנתקות</button></form>
+      <p class="muted small center"><a href="/privacy">פרטיות</a> · <a href="/terms">תנאי שימוש</a></p>
     </div></div>`;
 }
 

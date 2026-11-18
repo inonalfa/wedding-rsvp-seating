@@ -39,10 +39,11 @@ The hosted demo contains fictional data only and displays a banner on every page
 
 The repository also contains a separate, open-source hosted edition (`hosted/`) for couples to run their own event without installing anything. It is not deployed by this repository. See the [hosted plan](docs/hosted-service-plan.md) and [operator deployment guide](docs/hosted-deploy.md).
 
-- **Sign in** with Google or with a username and password (PBKDF2-SHA256, no e-mail recovery).
+- **Sign in** with Google. Username and password accounts (PBKDF2-SHA256, no e-mail recovery) exist behind `HOSTED_PASSWORD_LOGIN=1` and are off by default, because their CPU cost does not fit Workers Free.
 - **Invitation details**: names, date, reception and ceremony times, venue and address (Waze, Google Maps and calendar links), a personal message, parents, a contact phone, three colour themes and up to three photos (cover, couple, designed invitation). Photos are compressed in the browser and stored in D1, so no paid storage is needed.
 - **Owner app** at `/app`: an overview with response statistics and a next-steps checklist; guests added one by one or pasted from Excel/CSV, with phone and group; manual RSVP after a phone call; personal WhatsApp messages from an editable template; per-guest link revocation; Excel export with links; seating with drag and drop, tap-to-assign, automatic seating by group and a printable list; a 24-hour staff table-search link.
 - **Guest invitation**: a personal page with the couple's photos and details, RSVP with a head count and a note, the assigned table and a calendar file.
+- **Draft privacy notice and terms** at `/privacy` and `/terms`, linked from sign-in, the app and each invitation. They are marked as drafts until legal review. Set `HOSTED_CONTACT_EMAIL` to show a contact address.
 - **Demo** at `/demo`, linked from the main menu: the same app, with everything kept in the browser's `localStorage`. Creating an account offers to move the event, photos, guests and tables into it.
 
 The existing fictional demo and self-hosted setup below are unchanged, except that the demo entry on the invitation now sits in the main menu instead of a section above the page.

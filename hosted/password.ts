@@ -80,6 +80,11 @@ export async function checkPasswordAccount(db: D1Database, username: string, pas
   return await verifyPassword(password, row.password_hash) ? row.provider_subject : null;
 }
 
+/** Password accounts are off unless the operator sets HOSTED_PASSWORD_LOGIN=1. Google is the default sign-in. */
+export function passwordsEnabled(env: AuthEnv) {
+  return env.HOSTED_PASSWORD_LOGIN === "1";
+}
+
 function googleConfigured(env: AuthEnv) {
   return Boolean(env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET && env.HOSTED_AUTH_SECRET);
 }
@@ -91,10 +96,19 @@ export function authPage(env: AuthEnv, mode: "login" | "signup", message = "", s
   const signupChallenge = widget(env, "signup");
   const available = mode === "login" ? Boolean(loginChallenge) : Boolean(signupChallenge);
   const alert = message ? `<p class="alert" role="alert">${escapeHtml(message)}</p>` : "";
+  const passwords = passwordsEnabled(env);
   const google = googleConfigured(env) && loginChallenge
-    ? `<form method="post" action="/auth/login" class="google-form">${loginChallenge}<button class="btn google">${googleMark}<span>המשך עם Google</span></button></form><div class="divider"><span>או</span></div>`
+    ? `<form method="post" action="/auth/login" class="google-form">${loginChallenge.replace('class="cf-turnstile"', 'class="cf-turnstile" data-appearance="interaction-only"')}<button class="btn google">${googleMark}<span>המשך עם Google</span></button></form>${passwords ? '<div class="divider"><span>או</span></div>' : ""}`
     : "";
-  if (!available) return page("ההתחברות אינה זמינה כרגע", "<p>נסו שוב מאוחר יותר.</p>", 503);
+  if (!available || (!passwords && !google)) return page("ההתחברות אינה זמינה כרגע", "<p>נסו שוב מאוחר יותר.</p>", 503);
+  const legal = `<p class="muted small center">בהמשך אתם מאשרים את <a href="/terms">תנאי השימוש</a> ואת <a href="/privacy">מדיניות הפרטיות</a>.</p>`;
+  if (!passwords) {
+    const intro = mode === "signup"
+      ? "ההרשמה מתבצעת עם חשבון Google, ללא סיסמה נוספת. נתונים שהזנתם בהדגמה יועברו לחשבון אחרי הכניסה."
+      : "הכניסה מתבצעת עם חשבון Google. אם זו הפעם הראשונה, ייווצר לכם חשבון.";
+    return page(mode === "login" ? "כניסה לחשבון" : "יצירת חשבון", `<p class="lead">${intro}</p>${alert}${google}${legal}
+      <p class="muted center"><a href="/demo">לנסות קודם את ההדגמה</a></p>`, status, true, true, { bodyClass: "auth" });
+  }
   const body = mode === "login"
     ? `${alert}${google}<form method="post" action="/auth/password" class="stack">
       <label>שם משתמש או אימייל <input name="username" autocomplete="username" dir="ltr" required maxlength="64" value="${escapeHtml(values.username ?? "")}"></label>
@@ -110,7 +124,7 @@ export function authPage(env: AuthEnv, mode: "login" | "signup", message = "", s
       <p class="muted small">אין אפשרות לשחזר סיסמה בדוא"ל. שמרו אותה במנהל סיסמאות, או התחברו עם Google.</p>
       ${signupChallenge.replace('class="cf-turnstile"', 'class="cf-turnstile" data-appearance="interaction-only"')}
       <button class="btn primary">יצירת חשבון</button></form>
-      <p class="muted center">כבר רשומים? <a href="/auth/login">כניסה</a></p>`;
+      ${legal}<p class="muted center">כבר רשומים? <a href="/auth/login">כניסה</a></p>`;
   return page(mode === "login" ? "כניסה לחשבון" : "יצירת חשבון", `<p class="lead">${mode === "signup" ? "נתונים שהזנתם בהדגמה יועברו לחשבון החדש אחרי ההרשמה." : "ממשיכים מאיפה שעצרתם."}</p>${body}`,
     status, true, Boolean(google), { bodyClass: "auth" });
 }
@@ -128,6 +142,7 @@ export async function passwordRoute(request: Request, env: AuthEnv, now: number,
   const isLogin = url.pathname === "/auth/password" && request.method === "POST";
   const isSignup = url.pathname === "/auth/signup" && request.method === "POST";
   if (!isLogin && !isSignup) return null;
+  if (!passwordsEnabled(env)) return page("העמוד לא נמצא", "", 404);
   if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
     return page("הבקשה נחסמה", "", 403);
   }

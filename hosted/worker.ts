@@ -9,6 +9,7 @@ import { guestInvitation, invitationCalendar } from "./invites";
 import { appApi } from "./api";
 import { appShell, landingPage } from "./shell";
 import { servePhoto } from "./media";
+import { privacyPage, termsPage } from "./legal";
 import { tableSearch } from "./table-search";
 import { purgeExpired } from "./retention";
 
@@ -51,6 +52,8 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
         const blocked = await limited(env.CLIENT_LIMIT, "media:" + await clientKey());
         return blocked ?? servePhoto(env.HOSTED_DB, media[1], Date.now());
       }
+      if (request.method === "GET" && url.pathname === "/privacy") return privacyPage(env.HOSTED_CONTACT_EMAIL);
+      if (request.method === "GET" && url.pathname === "/terms") return termsPage(env.HOSTED_CONTACT_EMAIL);
       if (url.pathname === "/demo" || url.pathname.startsWith("/demo/")) return appShell("demo");
       if (url.pathname.startsWith("/api/app/")) {
         const owner = await sessionOwner(request, env);

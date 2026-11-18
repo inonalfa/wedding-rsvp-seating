@@ -35,7 +35,8 @@ async function signIn(page: Page, subject: string) {
     await route.fulfill({ response, headers: { ...headers, location: callback.href } });
   });
   await page.goto(origin + "/auth/login");
-  await expect(page.locator("[name=cf-turnstile-response]")).toHaveCount(2);
+  await expect(page.locator("[name=cf-turnstile-response]")).toHaveCount(1);
+  await expect(page.locator("input[type=password]")).toHaveCount(0);
   await page.getByRole("button", { name: "המשך עם Google" }).click();
   await expect(page).toHaveURL(origin + "/app");
 }
@@ -101,7 +102,7 @@ test("hosted couple signs up, adds guests, shares, receives RSVP, seats and prin
   await other.close();
 });
 
-test("demo keeps data in the browser and moves it into a new password account", async ({ page }) => {
+test("demo keeps data in the browser and moves it into a new Google account", async ({ page }) => {
   await challenge(page);
   await page.goto(origin);
   await page.getByRole("navigation", { name: "תפריט ראשי" }).getByRole("link", { name: "הדגמה" }).click();
@@ -116,14 +117,15 @@ test("demo keeps data in the browser and moves it into a new password account", 
 
   await page.getByRole("button", { name: "הדגמה" }).click();
   await page.getByRole("link", { name: "יצירת חשבון ושמירת הנתונים" }).click();
-  await page.getByLabel("שם משתמש או אימייל").fill("demo.couple");
-  await page.getByLabel("סיסמה (לפחות 10 תווים)").fill("Fictional-Pass-42");
-  await page.getByLabel("אימות סיסמה").fill("Fictional-Pass-42");
-  await page.getByRole("button", { name: "יצירת חשבון" }).click();
+  await expect(page.getByRole("heading", { name: "יצירת חשבון" })).toBeVisible();
+  await expect(page.locator("input[type=password]")).toHaveCount(0);
+  await signIn(page, "owner-c");
   await expect(page.getByRole("heading", { name: "מצאנו נתונים מההדגמה" })).toBeVisible();
   await page.getByRole("button", { name: "העברה לחשבון" }).click();
   await expect(page.getByRole("heading", { name: "מאיה & עומר" })).toBeVisible();
   expect(await page.evaluate(() => localStorage.getItem("wedding-demo-v1"))).toBeNull();
   await page.getByRole("link", { name: "מוזמנים", exact: true }).click();
   await expect(page.getByRole("cell", { name: /משפחת אבן/ })).toBeVisible();
+  await page.goto(origin + "/privacy");
+  await expect(page.getByRole("heading", { name: "מדיניות פרטיות" })).toBeVisible();
 });

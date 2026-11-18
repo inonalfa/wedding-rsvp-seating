@@ -247,3 +247,6 @@ table.guests td { padding: .6rem .5rem; border-bottom: 1px solid var(--line); ve
   .print-only table { width: 100%; border-collapse: collapse; }
   .print-only td, .print-only th { border-bottom: 1px solid #ccc; padding: 4px; text-align: start; }
 }
+body.legal .page-card { max-width: 760px; }
+body.legal .page-card h1 { text-align: start; }
+body.legal .page-card h2 { margin-top: 1.4rem; }

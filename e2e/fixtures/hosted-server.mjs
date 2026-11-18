@@ -36,6 +36,7 @@ const HOSTED_DB = {
 };
 const rate = { limit: async () => ({ success: true }) };
 const env = {
+  HOSTED_CONTACT_EMAIL: "privacy@example.test",
   HOSTED_DB, HOSTED_ORIGIN: origin, GOOGLE_CLIENT_ID: "fictional-client", GOOGLE_CLIENT_SECRET: "fictional",
   HOSTED_AUTH_SECRET: Buffer.alloc(32, 1).toString("base64url"), HOSTED_INVITE_SECRET: Buffer.alloc(32, 2).toString("base64url"),
   TURNSTILE_SITE_KEY: "fictional-site", TURNSTILE_SECRET: "fictional-secret",
@@ -71,7 +72,7 @@ const worker = createHostedWorker(async (url, init) => {
   if (url === "https://oauth2.googleapis.com/token") {
     const code = init.body.get("code");
     const [subject, nonce] = code.split(":");
-    if (!nonce || !["owner-a", "owner-b"].includes(subject) || usedCodes.has(code)) return new Response(null, { status: 400 });
+    if (!nonce || !["owner-a", "owner-b", "owner-c"].includes(subject) || usedCodes.has(code)) return new Response(null, { status: 400 });
     usedCodes.add(code);
     const now = Math.floor(Date.now() / 1000);
     const unsigned = b64({ alg: "RS256", kid: "fixture" }) + "." + b64({

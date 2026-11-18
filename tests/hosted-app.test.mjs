@@ -41,7 +41,7 @@ function fixture(t) {
   const allow = { limit: async () => ({ success: true }) };
   const env = {
     HOSTED_DB, HOSTED_ORIGIN: origin, HOSTED_INVITE_SECRET: Buffer.alloc(32, 5).toString("base64url"),
-    TURNSTILE_SITE_KEY: "fixture", TURNSTILE_SECRET: "fixture",
+    TURNSTILE_SITE_KEY: "fixture", TURNSTILE_SECRET: "fixture", HOSTED_PASSWORD_LOGIN: "1",
     LOGIN_LIMIT: allow, OWNER_LIMIT: allow, RECOVERY_LIMIT: allow, GUEST_LIMIT: allow, CLIENT_LIMIT: allow,
   };
   const worker = createHostedWorker(async (url, init) => {
@@ -231,4 +231,29 @@ test("details, image sniffing and invitation markup are strict", () => {
   assert.doesNotMatch(html, /" onerror="/);
   assert.match(html, /theme-garden/);
   assert.match(html, /<option value="2" selected>2<\/option>/);
+});
+
+test("by default only Google sign-in is offered and password routes are closed", async t => {
+  const { env, form, get, sql } = fixture(t);
+  delete env.HOSTED_PASSWORD_LOGIN;
+  Object.assign(env, { GOOGLE_CLIENT_ID: "fictional", GOOGLE_CLIENT_SECRET: "fictional", HOSTED_AUTH_SECRET: Buffer.alloc(32, 1).toString("base64url") });
+  for (const path of ["/auth/login", "/auth/signup"]) {
+    const html = await (await get(path)).text();
+    assert.match(html, /המשך עם Google/);
+    assert.doesNotMatch(html, /type="password"/);
+    assert.match(html, /href="\/privacy"/);
+  }
+  assert.equal((await form("/auth/signup", { username: "closed.door", password: "Correct-Horse-91", confirm: "Correct-Horse-91", "cf-turnstile-response": "signup:x" })).status, 404);
+  assert.equal((await form("/auth/password", { username: "closed.door", password: "Correct-Horse-91", "cf-turnstile-response": "login:x" })).status, 404);
+  assert.equal(sql.prepare("SELECT count(*) AS n FROM accounts").get().n, 0);
+  delete env.GOOGLE_CLIENT_ID;
+  assert.equal((await get("/auth/login")).status, 503);
+  env.HOSTED_CONTACT_EMAIL = "privacy@example.test";
+  for (const path of ["/privacy", "/terms"]) {
+    const response = await get(path);
+    assert.equal(response.status, 200);
+    const text = await response.text();
+    assert.match(text, /טיוטה/);
+    assert.match(text, /mailto:privacy@example\.test/);
+  }
 });

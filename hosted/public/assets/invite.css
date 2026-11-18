@@ -49,3 +49,5 @@ body.invite-page { background: #f4f1ea; }
 .mini-preview .inv-hero { min-height: 380px; }
 .mini-preview .inv-names { font-size: 2.6rem; }
 @media (min-width: 700px) { body.invite-page .inv { margin: 2rem auto; border-radius: 28px; box-shadow: 0 30px 80px rgba(0,0,0,.12); } }
+.inv-legal { font-family: "Heebo", sans-serif; font-size: .78rem; margin-top: 1rem; }
+.inv-legal a { color: var(--i-soft); }

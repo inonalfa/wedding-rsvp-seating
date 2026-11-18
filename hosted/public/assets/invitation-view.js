@@ -111,6 +111,6 @@ export function invitationMarkup(model) {
     <main class="inv-body">
       ${message || schedule || families ? `<section class="inv-section"><p class="inv-eyebrow">${esc(when.short)}</p>${message}${schedule ? `<div class="inv-schedule">${schedule}</div>` : ""}${families}</section>` : ""}
       ${couple}${card}${venue}${rsvp}
-      <footer class="inv-footer"><p>${esc(hosts.b ? `${hosts.a} & ${hosts.b}` : hosts.a)}</p>${contact}</footer>
+      <footer class="inv-footer"><p>${esc(hosts.b ? `${hosts.a} & ${hosts.b}` : hosts.a)}</p>${contact}${model.preview || model.guest ? `<p class="inv-legal"><a href="/privacy" target="_blank" rel="noreferrer">פרטיות</a></p>` : ""}</footer>
     </main></div>`;
 }

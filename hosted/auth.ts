@@ -12,6 +12,8 @@ export interface AuthEnv extends AbuseEnv, UsageEnv {
   HOSTED_AUTH_SECRET?: string;
   HOSTED_INVITE_SECRET?: string;
   HOSTED_CONNECTOR_HMAC?: string;
+  HOSTED_PASSWORD_LOGIN?: string;
+  HOSTED_CONTACT_EMAIL?: string;
   ASSETS?: { fetch(request: Request): Promise<Response> };
 }
 
