@@ -39,6 +39,11 @@ export function ownerStore(db: D1Database, ownerId: string, now = Date.now()) {
             WHERE event_id = (${activeEvent}) AND guest_id = ?`)
             .bind(...scope, guestId).first<{ guest_id: string; invite_version: number }>();
         },
+        async revokeInvitation(guestId: string) {
+          const result = await db.prepare(`UPDATE guests SET invite_version = invite_version + 1
+            WHERE event_id = (${activeEvent}) AND guest_id = ?`).bind(...scope, guestId).run();
+          return result.meta.changes === 1;
+        },
         async importGuests(guests: ImportedGuest[]) {
           const statements = [];
           for (let i = 0; i < guests.length; i += 30) {
