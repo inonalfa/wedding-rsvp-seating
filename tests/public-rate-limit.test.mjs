@@ -6,7 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 const { default: worker } = await import('../dist/server/index.js');
 const context = { waitUntil() {}, passThroughOnException() {} };
 
-function fixture() {
+function fixture(overrides = {}) {
   const sql = new DatabaseSync(':memory:');
   for (const file of readdirSync(new URL('../drizzle', import.meta.url)).filter(name => name.endsWith('.sql')).sort()) {
     sql.exec(readFileSync(new URL(`../drizzle/${file}`, import.meta.url), 'utf8'));
@@ -22,7 +22,7 @@ function fixture() {
     },
     async batch(statements) { for (const statement of statements) await statement.run(); return []; },
   };
-  const env = { DB: db, DEMO_MODE: '1', ASSETS: { fetch: async () => new Response('', { status: 404 }) } };
+  const env = { DB: db, DEMO_MODE: '1', ASSETS: { fetch: async () => new Response('', { status: 404 }) }, ...overrides };
   const post = (ip, body = '{}') => worker.fetch(new Request('https://example.test/api/rsvp', {
     method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip }, body,
   }), env, context);
@@ -43,7 +43,7 @@ test('public RSVP limits repeated requests per address and validates JSON', asyn
 });
 
 test('RSVP rejects unbounded guest counts before persistence', async () => {
-  const { sql, post } = fixture();
+  const { sql, post } = fixture({ DEMO_MODE: '0', REQUIRE_INVITE_TOKEN: '0' });
   try {
     const response = await post('203.0.113.3', JSON.stringify({ fullName: 'דנה ישראלי', attendance: 'yes', guestCount: 1001 }));
     assert.equal(response.status, 400);

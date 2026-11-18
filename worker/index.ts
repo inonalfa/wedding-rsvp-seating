@@ -2,8 +2,11 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import type { D1Database } from "@cloudflare/workers-types";
+import { basicAuthResult, insecureAdminTransport, passwordPolicyFailure, sitesModeGate } from "../lib/basic-auth";
+import { runGuestRetention } from "../lib/guest-retention";
 import { requestContext } from "../lib/request-context";
 import { limitPublicRequest } from "../lib/public-rate-limit";
+import type { WeddingRuntimeConfig } from "../lib/runtime-config";
 
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
@@ -23,6 +26,12 @@ interface Env {
   AUTH_MODE?: string;
   ADMIN_PASSWORD?: string;
   STAFF_PASSWORD?: string;
+  REQUIRE_INVITE_TOKEN?: string;
+  LEGACY_INVITE_TTL_SECONDS?: string;
+  WEBHOOK_HMAC_REQUIRED?: string;
+  MAKE_WEBHOOK_HMAC_SECRET?: string;
+  SITES_DISPATCH_SECRET?: string;
+  GUEST_DATA_RETENTION_AT?: string;
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -43,7 +52,31 @@ interface ExecutionContext {
 // dangerouslyAllowSVG: true in next.config.js and uncomment below:
 // const imageConfig: ImageConfig = { dangerouslyAllowSVG: true };
 
+function runtimeConfig(env: Env): WeddingRuntimeConfig {
+  return {
+    inviteTokenTtlSeconds: env.INVITE_TOKEN_TTL_SECONDS,
+    inviteTokensExpireAt: env.INVITE_TOKENS_EXPIRE_AT,
+    legacyInviteTtlSeconds: env.LEGACY_INVITE_TTL_SECONDS,
+    seatingTokenEpoch: env.SEATING_TOKEN_EPOCH,
+    inviteTokenSecret: env.INVITE_TOKEN_SECRET,
+    inviteShortTokenSecret: env.INVITE_SHORT_TOKEN_SECRET,
+    makeWebhookUrl: env.MAKE_WEBHOOK_URL,
+    makeWebhookHmacSecret: env.MAKE_WEBHOOK_HMAC_SECRET,
+    adminEmails: env.ADMIN_EMAILS,
+    seatingSheetsWebhookUrl: env.SEATING_SHEETS_WEBHOOK_URL,
+    whatsappRsvpSecret: env.WHATSAPP_RSVP_SECRET,
+    seatingSyncSecret: env.SEATING_SYNC_SECRET,
+    demoMode: env.DEMO_MODE === "1",
+    authMode: env.AUTH_MODE,
+    requireInviteToken: env.REQUIRE_INVITE_TOKEN,
+    webhookHmacRequired: env.WEBHOOK_HMAC_REQUIRED === "1",
+  };
+}
+
 const worker = {
+  async scheduled(_controller: unknown, env: Env) {
+    await runGuestRetention(env.DB, env.GUEST_DATA_RETENTION_AT);
+  },
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
@@ -57,35 +90,46 @@ const worker = {
     if ((admin || staff) && mutation && invalidBrowserOrigin(request)) {
       return Response.json({ error: 'Cross-origin request denied' }, { status: 403 });
     }
+    if ((admin || staff) && insecureAdminTransport(url)) {
+      return new Response("גישת ניהול דורשת HTTPS.", { status: 403, headers: { "Cache-Control": "no-store" } });
+    }
+    let sitesWarning = false;
+    if ((admin || staff) && env.AUTH_MODE === "sites") {
+      const decision = sitesModeGate({
+        AUTH_MODE: env.AUTH_MODE,
+        DEMO_MODE: env.DEMO_MODE,
+        SITES_DISPATCH_SECRET: env.SITES_DISPATCH_SECRET,
+      }, request);
+      if (decision instanceof Response) return decision;
+      sitesWarning = decision.warning;
+    }
     const headers = new Headers(request.headers);
     if (env.AUTH_MODE !== 'sites') {
       headers.delete('oai-authenticated-user-email');
       headers.delete('oai-authenticated-user-full-name');
       headers.delete('oai-authenticated-user-full-name-encoding');
-      if (admin) {
-        const authenticated = (env.DEMO_MODE === '1' && env.DEMO_AUTH !== '1') ||
-          !!(env.ADMIN_PASSWORD && await validBasicPassword(request, env.ADMIN_PASSWORD));
-        if (authenticated) headers.set('oai-authenticated-user-email', env.ADMIN_EMAILS?.split(',')[0]?.trim() || 'demo@example.test');
-        else if (!service) return authRequired('Wedding admin');
-        // The sync handler independently checks service Bearer credentials.
-      } else if (staff && (env.DEMO_MODE !== '1' || env.DEMO_AUTH === '1') && !(env.STAFF_PASSWORD && await validBasicPassword(request, env.STAFF_PASSWORD))) return authRequired('Wedding staff');
+      const bearerService = service && /^Bearer\s+\S/i.test(request.headers.get("authorization") || "");
+      if ((admin || staff) && !bearerService) {
+        const policy = passwordPolicyFailure(env.DEMO_MODE, env.ADMIN_PASSWORD, env.STAFF_PASSWORD);
+        if (policy) return policy;
+      }
+      if (admin && !bearerService) {
+        const demoOpen = env.DEMO_MODE === "1" && env.DEMO_AUTH !== "1";
+        if (demoOpen) headers.set("oai-authenticated-user-email", env.ADMIN_EMAILS?.split(",")[0]?.trim() || "demo@example.test");
+        else {
+          const denied = await basicAuthResult(env.DB, request, "Wedding admin", env.ADMIN_PASSWORD);
+          // Bearer-less service calls stay anonymous here; the sync route checks its own secret.
+          if (denied && !service) return denied;
+          if (!denied) headers.set("oai-authenticated-user-email", env.ADMIN_EMAILS?.split(",")[0]?.trim() || "demo@example.test");
+        }
+      } else if (staff && (env.DEMO_MODE !== "1" || env.DEMO_AUTH === "1")) {
+        const denied = await basicAuthResult(env.DB, request, "Wedding staff", env.STAFF_PASSWORD);
+        if (denied) return denied;
+      }
     }
     request = new Request(request, { headers });
-    const config = {
-      inviteTokenTtlSeconds: env.INVITE_TOKEN_TTL_SECONDS,
-      inviteTokensExpireAt: env.INVITE_TOKENS_EXPIRE_AT,
-      seatingTokenEpoch: env.SEATING_TOKEN_EPOCH,
-      inviteTokenSecret: env.INVITE_TOKEN_SECRET,
-      inviteShortTokenSecret: env.INVITE_SHORT_TOKEN_SECRET,
-      makeWebhookUrl: env.MAKE_WEBHOOK_URL,
-      adminEmails: env.ADMIN_EMAILS,
-      seatingSheetsWebhookUrl: env.SEATING_SHEETS_WEBHOOK_URL,
-      whatsappRsvpSecret: env.WHATSAPP_RSVP_SECRET,
-      seatingSyncSecret: env.SEATING_SYNC_SECRET,
-      demoMode: env.DEMO_MODE === '1',
-      authMode: env.AUTH_MODE,
-    };
-    return requestContext.run({ db: env.DB, config }, async () => {
+    const config = runtimeConfig(env);
+    const response = await requestContext.run({ db: env.DB, config }, async () => {
     if (path === '/api/rsvp' && request.method === 'POST') {
       const denied = await limitPublicRequest(request, path, 20);
       if (denied) return denied;
@@ -106,32 +150,18 @@ const worker = {
 
     return handler.fetch(request, env, ctx);
     });
+    if (!sitesWarning) return response;
+    const warningHeaders = new Headers(response.headers);
+    warningHeaders.set("X-Auth-Warning", "AUTH_MODE=sites trusts identity headers without a dispatch secret");
+    return new Response(response.body, { status: response.status, statusText: response.statusText, headers: warningHeaders });
   },
 };
 
 export default worker;
-
-function authRequired(realm: string): Response {
-  return new Response('Authentication required', { status: 401, headers: { 'WWW-Authenticate': `Basic realm="${realm}", charset="UTF-8"`, 'Cache-Control': 'no-store' } });
-}
 
 function invalidBrowserOrigin(request: Request): boolean {
   const origin = request.headers.get('origin');
   if (origin && origin !== new URL(request.url).origin) return true;
   const site = request.headers.get('sec-fetch-site');
   return site === 'cross-site' || (request.headers.has('sec-fetch-mode') && !origin && site !== 'same-origin');
-}
-async function validBasicPassword(request: Request, expected: string): Promise<boolean> {
-  const authorization = request.headers.get('authorization') || '';
-  if (!authorization.startsWith('Basic ') || authorization.length > 2048) return false;
-  try {
-    const decoded = atob(authorization.slice(6));
-    const colon = decoded.indexOf(':');
-    if (colon < 0 || decoded.slice(0, colon) !== 'admin') return false;
-    const encoder = new TextEncoder();
-    const [a,b] = await Promise.all([crypto.subtle.digest('SHA-256',encoder.encode(decoded.slice(colon+1))),crypto.subtle.digest('SHA-256',encoder.encode(expected))]);
-    const left = new Uint8Array(a),right = new Uint8Array(b); let difference = 0;
-    for(let i=0;i<left.length;i++) difference |= left[i] ^ right[i];
-    return difference === 0;
-  } catch { return false; }
 }

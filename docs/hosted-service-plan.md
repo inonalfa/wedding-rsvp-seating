@@ -82,7 +82,7 @@ Confirm Google-only launch and recovery policy; accept a 20-event pilot and the 
 - [#18](https://github.com/inonalfa/wedding-rsvp-seating/pull/18): browser journey with two fictional owners and separate guest session.
 - This deployment slice adds a documented operator command, local bundle preflight and a CI dry run.
 
-Remaining operator gates: provision the separate Free account resources, verify real Google/Turnstile/Cloudflare metrics and peak CPU, publish reviewed policies, and decide when to open the pilot. No paid tier, R2, KV, managed email, or platform WhatsApp sending is configured.
+Remaining operator gates: provision the separate Free account resources, verify real Google/Turnstile/Cloudflare metrics and peak CPU, publish reviewed policies, and decide when to open the pilot. No paid tier, R2, KV, managed email, or platform WhatsApp sending is configured. Hosted guest links stay signed and expiring; the event page can retire one link by advancing its version. Optional connector HMAC stays off until `HOSTED_CONNECTOR_HMAC=1`. `HOSTED_ORIGIN` must be HTTPS except on localhost.
 
 The repository includes a read-only Analytics preflight command that introspects `ZoneWorkersRequestsFilter_InputObject` and runs the exact strict usage query shared with the Worker. It requires the intended Free account, so adding it does not claim that live schema access or entitlement has passed. A successful result and Dashboard comparison remain an operator launch gate.
 

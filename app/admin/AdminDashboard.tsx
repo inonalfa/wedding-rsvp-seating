@@ -117,6 +117,11 @@ export default function AdminDashboard({
   const [exclusionInput, setExclusionInput] = useState("");
   const [exclusionPending, setExclusionPending] = useState(false);
   const [exclusionError, setExclusionError] = useState("");
+  const [controlId, setControlId] = useState("");
+  const [controlExpiry, setControlExpiry] = useState("");
+  const [controlPending, setControlPending] = useState(false);
+  const [controlMessage, setControlMessage] = useState("");
+  const [controlError, setControlError] = useState("");
 
   const { overviewRows, filteredOverview, filteredResponses, filteredVisits, filteredInvites, filteredLegacy, stats } = useAdminData(data, search);
 
@@ -163,6 +168,29 @@ export default function AdminDashboard({
     await copyText(value);
     setCopied(kind);
     window.setTimeout(() => setCopied(null), 1800);
+  }
+
+  async function updateInviteControl(inviteId: string, revoke: boolean, expiresAt?: string) {
+    const id = inviteId.trim();
+    if (!id) return;
+    setControlPending(true);
+    setControlError("");
+    setControlMessage("");
+    try {
+      const response = await fetch("/api/admin/invites/control", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ inviteId: id, revoke, ...(expiresAt ? { expiresAt } : {}) }),
+      });
+      const result = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(result.error || "לא הצלחנו לעדכן את הקישור");
+      setControlMessage(revoke ? "הקישור בוטל. מי שיש לו את הקישור הישן לא יוכל לאשר דרכו." : "תאריך התוקף נשמר.");
+      await refreshData();
+    } catch (error) {
+      setControlError(error instanceof Error ? error.message : "לא הצלחנו לעדכן את הקישור");
+    } finally {
+      setControlPending(false);
+    }
   }
 
   async function changeExclusion(method: "POST" | "DELETE", token: string) {
@@ -268,8 +296,21 @@ export default function AdminDashboard({
         </aside>
       </section>
 
+      <section className="admin-exclusions" aria-labelledby="invite-control-title">
+        <div className="admin-card-heading"><span className="admin-step-number">02</span><div><p className="admin-kicker">תוקף וביטול</p><h2 id="invite-control-title">ביטול קישור או קביעת תוקף</h2></div></div>
+        <p className="admin-card-intro">אפשר לבטל קישור אחד בלי להחליף את מפתחות החתימה. קישורים ישנים בלי תאריך בתוכם נסגרים 90 יום אחרי הפתיחה הראשונה, אלא אם הגדרתם אחרת.</p>
+        <form className="admin-exclusion-form" onSubmit={event => event.preventDefault()}>
+          <label className="admin-field"><span>מזהה ההזמנה</span><input dir="ltr" value={controlId} onChange={event => setControlId(event.target.value)} placeholder="d-abc123" required /></label>
+          <label className="admin-field"><span>תוקף עד</span><input type="datetime-local" value={controlExpiry} onChange={event => setControlExpiry(event.target.value)} /></label>
+          <button className="admin-create-button" type="button" disabled={controlPending || !controlId.trim() || !controlExpiry} onClick={() => void updateInviteControl(controlId, false, new Date(controlExpiry).toISOString())}>שמירת תוקף</button>
+          <button className="admin-create-button" type="button" disabled={controlPending || !controlId.trim()} onClick={() => void updateInviteControl(controlId, true)}>ביטול הקישור</button>
+        </form>
+        {controlError && <p className="admin-form-error" role="alert">{controlError}</p>}
+        {controlMessage && <p role="status">{controlMessage}</p>}
+      </section>
+
       <section className="admin-exclusions" aria-labelledby="exclusions-title">
-        <div className="admin-card-heading"><span className="admin-step-number">02</span><div><p className="admin-kicker">התאמה להזמנה</p><h2 id="exclusions-title">החרגת הודעת מבוגרים בלבד</h2></div></div>
+        <div className="admin-card-heading"><span className="admin-step-number">03</span><div><p className="admin-kicker">התאמה להזמנה</p><h2 id="exclusions-title">החרגת הודעת מבוגרים בלבד</h2></div></div>
         <p className="admin-card-intro">בקישורים שברשימה הזו, ההודעה על אירוע למבוגרים בלבד לא תופיע. אפשר להדביק קישור אישי מלא או את המזהה שבסופו.</p>
         <form className="admin-exclusion-form" onSubmit={event => { event.preventDefault(); void changeExclusion("POST", exclusionInput); }}>
           <label className="admin-field"><span>קישור אישי או מזהה הקישור</span><input dir="ltr" value={exclusionInput} onChange={event => setExclusionInput(event.target.value)} placeholder="https://.../i/..." required /></label>
@@ -285,7 +326,8 @@ export default function AdminDashboard({
       <AdminDataSection activeTab={activeTab} setActiveTab={setActiveTab} search={search} setSearch={setSearch}
         isRefreshing={isRefreshing} refreshData={refreshData} overviewCount={overviewRows.length}
         responseCount={data.responses.length} visitCount={data.visits.length} inviteCount={data.invites.length} legacyCount={data.legacyResponses.length}
-        overview={filteredOverview} responses={filteredResponses} visits={filteredVisits} invites={filteredInvites} legacy={filteredLegacy} />
+        overview={filteredOverview} responses={filteredResponses} visits={filteredVisits} invites={filteredInvites} legacy={filteredLegacy}
+        onRevoke={inviteId => { setControlId(inviteId); void updateInviteControl(inviteId, true); }} />
     </main>
   );
 }

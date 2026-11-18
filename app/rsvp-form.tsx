@@ -116,6 +116,7 @@ export default function RSVPForm({ invite, inviteStatus, retryInvite, onSaved }:
   return <form className="rsvp-form" onSubmit={handleSubmit} noValidate aria-busy={status === "sending" || inviteStatus === "loading"}>
     {inviteStatus === "loading" && <p className="invite-loading" role="status"><span className="spinner" aria-hidden="true" /> רגע, פותחים את ההזמנה שלכם...</p>}
     {inviteStatus === "error" && <div className="form-error" role="alert"><strong>ההזמנה האישית לא נטענה</strong><p>אפשר לנסות שוב. אם זה לא מסתדר, אנחנו כאן בוואטסאפ.</p><div className="error-actions"><button type="button" onClick={retryInvite}><Icon name="refresh" /> ניסיון נוסף</button><a href={`mailto:${eventConfig.contactEmail}`}><Icon name="message" /> יצירת קשר עם המארגנים</a></div></div>}
+    {inviteStatus === "general" && <p className="privacy-note">אישור הגעה נשמר מהקישור האישי שקיבלתם. בלי הקישור, השליחה מתקבלת רק אם המארגנים פתחו את הטופס הכללי.</p>}
     <fieldset className="form-fields" disabled={status === "sending" || unavailable}>
       <legend className="sr-only">פרטי אישור ההגעה</legend>
       <fieldset className="attendance-field">

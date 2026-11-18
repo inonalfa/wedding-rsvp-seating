@@ -1,6 +1,7 @@
 import { getD1Binding } from '@/db';
 import { getWeddingRuntimeConfig } from '@/lib/runtime-config';
 import { formatWebhookDateTime } from '@/lib/webhook-date';
+import { withWebhookSignature } from '@/lib/webhook-signature';
 export type RsvpUpdate = { inviteId: string; firstName: string; fullName: string; phone: string; attendance: 'yes'|'no'; guestCount: number; sourceSheet: string; sourceRow: number; message: string };
 export async function saveCallRsvp(update: RsvpUpdate) {
   const db = getD1Binding(); const now = new Date().toISOString();
@@ -13,12 +14,13 @@ export async function saveCallRsvp(update: RsvpUpdate) {
   const saved = await db.prepare('SELECT message FROM rsvp_responses WHERE invite_id=?').bind(update.inviteId).first<{message:string}>();
   let synced = false; let syncError = '';
   try {
-    const response = await fetch(webhook, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+    const webhookBody=JSON.stringify({
       schemaVersion:3,event:'rsvp.updated',source:'phone',inviteId:update.inviteId,lookupColumn:'I',lookupValue:update.inviteId,
       sourceSheet:update.sourceSheet,rowNumber:update.sourceRow,firstName:update.firstName,invitedName:update.fullName,submittedName:update.fullName,
       attendance:update.attendance,attendanceHe:update.attendance==='yes'?'מאשרים':'לא מגיעים',guestCount:update.guestCount,maxGuests:null,
       message:saved?.message??'',submittedAt:formatWebhookDateTime(now),
-    }),signal:AbortSignal.timeout(7_000)});
+    });
+    const response = await fetch(webhook, {method:'POST',headers:await withWebhookSignature(webhookBody),body:webhookBody,signal:AbortSignal.timeout(7_000)});
     if (!response.ok) throw new Error(`Webhook returned ${response.status}`);
     synced = true;
   } catch (error) {syncError=error instanceof Error?error.message.slice(0,250):'Webhook failed';}

@@ -9,7 +9,7 @@ function fixture() {
   const sql = new DatabaseSync(':memory:');
   sql.exec(readFileSync(new URL('../drizzle/0007_natural_riptide.sql', import.meta.url), 'utf8'));
   sql.exec(readFileSync(new URL('../drizzle/0008_workable_reptil.sql', import.meta.url), 'utf8'));
-  const env = { AUTH_MODE: 'sites', ADMIN_EMAILS: 'admin@example.test', ASSETS: { fetch: async () => new Response('', { status: 404 }) }, DB: { prepare(query) { let args = []; return { bind(...values) { args = values; return this; }, async first() { return sql.prepare(query).get(...args) ?? null; } }; } } };
+  const env = { AUTH_MODE: 'sites', ADMIN_EMAILS: 'admin@example.test', ASSETS: { fetch: async () => new Response('', { status: 404 }) }, DB: { prepare(query) { let args = []; return { bind(...values) { args = values; return this; }, async first() { return sql.prepare(query).get(...args) ?? null; }, async run() { return sql.prepare(query).run(...args); } }; } } };
   const request = (method = 'GET', body, email = 'admin@example.test', origin = 'http://localhost') => worker.fetch(new Request('http://localhost/api/admin/seating-sketch', { method, headers: { ...(email ? { 'oai-authenticated-user-email': email } : {}), origin, 'content-type': 'application/json' }, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }), env, ctx);
   return { sql, env, request };
 }
