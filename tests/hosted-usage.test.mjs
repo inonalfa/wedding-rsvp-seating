@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { getUsage, hasHeadroom, refreshUsage } from "../hosted/usage.ts";
+import { getUsage, hasHeadroom, parseUsagePayload, refreshUsage, usageVariables, validateUsageSchema } from "../hosted/usage.ts";
 
 const now = Date.parse("2026-11-11T23:30:00Z");
 const good = {
@@ -78,4 +78,19 @@ test("explicit zero is valid; stale, prior-day and over-threshold measurements c
   assert.equal(await hasHeadroom(db, noon + 1), false);
   await refreshUsage(env, noon, respond(zero)); // An older result cannot reopen the gate.
   assert.equal(await hasHeadroom(db, noon + 1), false);
+});
+
+test("Analytics preflight shares runtime variables, schema and strict aggregate validation", () => {
+  assert.deepEqual(usageVariables("account", now), {
+    account: "account",
+    since: "2026-11-11T00:00:00Z",
+    until: "2026-11-11T23:30:00.000Z",
+    d1: { datetimeHour_geq: "2026-11-11T00:00:00Z", datetimeHour_leq: "2026-11-11T23:30:00.000Z" },
+  });
+  assert.equal(validateUsageSchema({ data: { __type: { name: "ZoneWorkersRequestsFilter_InputObject", kind: "INPUT_OBJECT", inputFields: [
+    { name: "datetimeHour_geq" }, { name: "datetimeHour_leq" },
+  ] } } }), true);
+  assert.equal(validateUsageSchema({ data: { __type: null } }), false);
+  assert.deepEqual(parseUsagePayload(zero), [0, 0, 0]);
+  assert.equal(parseUsagePayload(payload({ workersInvocationsAdaptive: [], d1QueriesAdaptiveGroups: [] })), null);
 });

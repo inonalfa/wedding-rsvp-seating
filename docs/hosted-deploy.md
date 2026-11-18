@@ -52,3 +52,11 @@ Hourly Analytics observations can be delayed, sampled, or unavailable. The [Work
 Repository review cross-checked the D1 filter against the pinned Wrangler 4.92.0 `d1 insights` implementation: it uses `ZoneWorkersRequestsFilter_InputObject` for `d1QueriesAdaptiveGroups` with `datetimeHour_geq`, `datetimeHour_leq`, `rowsRead`, and `rowsWritten`. This is source evidence, not live schema or entitlement verification. No dedicated Free-account credentials were available for this review.
 
 Before opening the pilot, use the intended Free account and Account Analytics Read token to run the exact `HostedUsage` query and variables from `hosted/usage.ts`. Use [schema discovery](https://developers.cloudflare.com/analytics/graphql-api/features/discovery/introspection/) to verify the D1 filter argument and fields (including `__type(name: "ZoneWorkersRequestsFilter_InputObject")`), and check [dataset settings](https://developers.cloudflare.com/analytics/graphql-api/features/discovery/settings/) and [D1 Analytics](https://developers.cloudflare.com/d1/observability/metrics-analytics/) for the account. Under account `settings`, check both `workersInvocationsAdaptive` and `d1QueriesAdaptiveGroups` for `enabled`, `availableFields` and `maxDuration`; confirm the required sum fields and UTC-day range. Verify both aggregates after known harmless pilot traffic, and compare them with the dashboard. If a dataset is denied or returns no row on a quiet day, leave admission closed and investigate; do not substitute zero or upgrade to a paid plan.
+
+With `CF_ACCOUNT_ID` and the Account Analytics Read-only `CF_ANALYTICS_TOKEN` in the local shell, run:
+
+```sh
+node --import ./tests/resolve-typescript.mjs --experimental-strip-types scripts/verify-hosted-analytics.mjs
+```
+
+This command is read-only. It introspects the exact D1 filter type and executes the same usage query and strict response parser as the Worker. A missing aggregate, partial response, schema mismatch or denied dataset exits nonzero and does not certify the launch. A passing command still needs comparison with the Cloudflare Dashboard after known harmless traffic.
