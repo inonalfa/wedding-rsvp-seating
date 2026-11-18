@@ -1,3 +1,4 @@
+import { verifyWebhookBodySignature } from "../lib/webhook-signature";
 import { hasHeadroom } from "./usage";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
 import { sessionOwner, type AuthEnv } from "./auth";
@@ -46,6 +47,8 @@ export async function connectorSnapshot(request: Request, env: AuthEnv, eventId:
   const token = request.headers.get("authorization")?.match(/^Bearer ([a-f0-9]{64})$/)?.[1];
   const deny = () => Response.json({ error: "Unauthorized" }, { status: 401, headers: privateHeaders });
   if (request.method !== "GET" || !token) return deny();
+  const signature = await verifyWebhookBodySignature(request, "", token, env.HOSTED_CONNECTOR_HMAC === "1");
+  if (signature) return signature;
   const hash = await tokenHash(token);
   if (!await hasHeadroom(env.HOSTED_DB, now)) return Response.json({ error: "Sync paused" }, { status: 503, headers: privateHeaders });
   const date = new Date(now).toISOString().slice(0, 10);

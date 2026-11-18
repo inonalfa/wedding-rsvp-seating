@@ -4,6 +4,7 @@ import { inviteVisits } from "@/db/schema";
 import { decodeInviteToken } from "@/lib/invite-token";
 import { getWeddingRuntimeConfig } from "@/lib/runtime-config";
 import { formatWebhookDateTime } from "@/lib/webhook-date";
+import { withWebhookSignature } from "@/lib/webhook-signature";
 
 type InviteOpenRequest = {
   inviteToken?: unknown;
@@ -74,23 +75,24 @@ export async function POST(request: Request) {
 
     if (makeWebhookUrl) {
       try {
+        const webhookBody = JSON.stringify({
+          schemaVersion: 2,
+          event: "invite.opened",
+          inviteId: invite.inviteId,
+          lookupColumn: "I",
+          lookupValue: invite.inviteId,
+          sourceSheet: invite.sourceSheet,
+          rowNumber: invite.sourceRow,
+          firstName: invite.firstName,
+          opened: "כן",
+          firstOpenedAt: formatWebhookDateTime(visit.firstOpenedAt),
+          lastOpenedAt: formatWebhookDateTime(visit.lastOpenedAt),
+          openCount: visit.openCount,
+        });
         const webhookResponse = await fetch(makeWebhookUrl, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            schemaVersion: 2,
-            event: "invite.opened",
-            inviteId: invite.inviteId,
-            lookupColumn: "I",
-            lookupValue: invite.inviteId,
-            sourceSheet: invite.sourceSheet,
-            rowNumber: invite.sourceRow,
-            firstName: invite.firstName,
-            opened: "כן",
-            firstOpenedAt: formatWebhookDateTime(visit.firstOpenedAt),
-            lastOpenedAt: formatWebhookDateTime(visit.lastOpenedAt),
-            openCount: visit.openCount,
-          }),
+          headers: await withWebhookSignature(webhookBody),
+          body: webhookBody,
           signal: AbortSignal.timeout(5_000),
         });
         if (!webhookResponse.ok) throw new Error(`Webhook returned ${webhookResponse.status}`);
