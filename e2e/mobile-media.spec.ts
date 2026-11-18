@@ -15,7 +15,10 @@ test('mobile fictional invitation and Hebrew table search media', async ({ brows
     const { shortLink } = await response.json() as { shortLink: string };
     const guestPage = await guest.newPage();
     await guestPage.goto(shortLink);
-    await expect(guestPage.getByRole('note', { name: 'סביבת הדגמה' })).toContainText(banner);
+    // On the invitation the demo notice is a menu entry rather than a strip above the page.
+    await guestPage.getByText('הדגמה', { exact: true }).click();
+    await expect(guestPage.locator('.demo-menu-pop')).toContainText(banner);
+    await guestPage.keyboard.press('Escape');
     await expect(guestPage.locator('#guest-name')).toHaveValue('דנה בדיקה');
     await guestPage.screenshot({ path: testInfo.outputPath('mobile-invite.png'), fullPage: false, animations: 'disabled' });
 
