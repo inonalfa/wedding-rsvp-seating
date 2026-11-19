@@ -134,7 +134,8 @@ test("two live tenants with overlapping IDs are isolated across owner, guest, st
   assert.equal((await request(staff.replace(a, b), null, { name: "Shared Guest" })).status, 404);
   assert.match(await (await request(staff, null, { name: "Shared Guest" })).text(), /role="status">שולחן 12</);
   assert.doesNotMatch(await (await request(staff, null, { name: "Bravo Private" })).text(), /role="status">שולחן /);
-  assert.equal((await request(invite, null, rsvp)).status, 303);
+  // A "yes" keeps the seat, so the export below still shows this tenant's assignment; a "no" would free it.
+  assert.equal((await request(invite, null, { attendance: "yes", guest_count: "1", "cf-turnstile-response": "test" })).status, 303);
   const api = id => "/api/connectors/" + id;
   assert.equal((await request(api(b), null, null, keyA)).status, 401);
   assert.equal((await request(api(a), null, null, keyB)).status, 401);

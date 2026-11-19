@@ -7,6 +7,7 @@ import { hashPassword, verifyPassword, normalizeUsername, passwordProblem } from
 import { parseDetails } from "../hosted/details.ts";
 import { sniffImage } from "../hosted/media.ts";
 import { invitationMarkup } from "../hosted/public/assets/invitation-view.js";
+import { waDigits, waLink } from "../hosted/public/assets/whatsapp.js";
 
 const origin = "https://weddings.example.test";
 const futureDate = days => new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
@@ -256,4 +257,53 @@ test("by default only Google sign-in is offered and password routes are closed",
     assert.match(text, /טיוטה/);
     assert.match(text, /mailto:privacy@example\.test/);
   }
+});
+
+test("declining frees the seat, whether the owner or the guest answers", async t => {
+  const { signup, api, form, sql } = fixture(t);
+  const a = await signup("owner.seats");
+  assert.equal((await api(a, "POST", "/event", { title: "Seats", date: futureDate(30) })).status, 201);
+  let state = await (await api(a, "POST", "/guests", { guests: [{ name: "Owner Answer", maxGuests: 2 }, { name: "Guest Answer", maxGuests: 2 }] })).json();
+  const [byOwner, byGuest] = state.guests;
+  state = await (await api(a, "POST", "/tables", { number: 1, capacity: 10 })).json();
+  const table = state.tables[0];
+  const seated = id => sql.prepare("SELECT count(*) AS n FROM seating_assignments WHERE guest_id = ?").get(id).n;
+  for (const guest of [byOwner, byGuest]) {
+    assert.equal((await api(a, "PUT", "/guests/" + guest.id + "/rsvp", { attendance: "yes", count: 2 })).status, 200);
+    assert.equal((await api(a, "PUT", "/seats", { guestId: guest.id, tableId: table.id })).status, 200);
+    assert.equal(seated(guest.id), 1);
+  }
+
+  // A changed head count keeps the seat; "no" from the owner frees it.
+  state = await (await api(a, "PUT", "/guests/" + byOwner.id + "/rsvp", { attendance: "yes", count: 1 })).json();
+  assert.equal(seated(byOwner.id), 1);
+  state = await (await api(a, "PUT", "/guests/" + byOwner.id + "/rsvp", { attendance: "no" })).json();
+  assert.equal(state.guests.find(g => g.id === byOwner.id).attendance, "no");
+  assert.equal(state.guests.find(g => g.id === byOwner.id).tableId, null);
+  assert.equal(seated(byOwner.id), 0);
+  assert.equal(seated(byGuest.id), 1);
+
+  // "no" from the guest's own invitation frees it too.
+  const links = (await (await api(a, "POST", "/links", { ids: [byGuest.id] })).json()).links;
+  const invite = new URL(links[byGuest.id]).pathname;
+  assert.equal((await form(invite, { attendance: "yes", guest_count: "2", "cf-turnstile-response": "rsvp:y" })).status, 303);
+  assert.equal(seated(byGuest.id), 1);
+  assert.equal((await form(invite, { attendance: "no", "cf-turnstile-response": "rsvp:n" })).status, 303);
+  assert.equal(seated(byGuest.id), 0);
+  state = await (await api(a, "GET", "/state")).json();
+  assert.equal(state.guests.find(g => g.id === byGuest.id).attendance, "no");
+  assert.equal(state.guests.find(g => g.id === byGuest.id).source, "guest");
+  // Answering "no" again is idempotent.
+  assert.equal((await form(invite, { attendance: "no", "cf-turnstile-response": "rsvp:n" })).status, 303);
+});
+
+test("WhatsApp links keep international numbers and convert local Israeli ones", () => {
+  assert.equal(waDigits("050-123-4567"), "972501234567");
+  assert.equal(waDigits("0501234567"), "972501234567");
+  assert.equal(waDigits("+972 50 123 4567"), "972501234567");
+  assert.equal(waDigits("+1 (415) 555-0100"), "14155550100");
+  assert.equal(waDigits("00972501234567"), "972501234567");
+  assert.equal(waDigits("0044 20 7946 0000"), "442079460000");
+  assert.equal(waDigits("972501234567"), "972501234567");
+  assert.equal(waLink("00 1 415 555 0100", "שלום & hi"), "https://wa.me/14155550100?text=" + encodeURIComponent("שלום & hi"));
 });

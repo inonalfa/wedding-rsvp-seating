@@ -99,13 +99,19 @@ export async function guestInvitation(request: Request, env: InviteEnv, token: s
     WHERE ${active}`).bind(...scope).first<{ max_guests: number }>();
   if (!guest) return missing();
   if (count > guest.max_guests) return page("מספר האורחים חורג מההזמנה", `<a href="/invite/${token}">חזרה להזמנה</a>`, 400);
-  const result = await env.HOSTED_DB.prepare(`INSERT INTO rsvps(event_id, guest_id, attendance, guest_count, note, updated_at, source)
+  const save = env.HOSTED_DB.prepare(`INSERT INTO rsvps(event_id, guest_id, attendance, guest_count, note, updated_at, source)
     SELECT g.event_id, g.guest_id, ?, ?, ?, ?, 'guest' FROM guests g JOIN events e ON e.event_id = g.event_id
     WHERE ${active} AND g.max_guests >= ?
     ON CONFLICT(event_id, guest_id) DO UPDATE SET attendance = excluded.attendance, guest_count = excluded.guest_count,
       note = excluded.note, updated_at = excluded.updated_at, source = 'guest'
     WHERE attendance <> excluded.attendance OR guest_count <> excluded.guest_count OR COALESCE(note, '') <> COALESCE(excluded.note, '')
-    RETURNING guest_id`).bind(answer, count, note, now, ...scope, count).first();
+    RETURNING guest_id`).bind(answer, count, note, now, ...scope, count);
+  // A guest who is not coming must not keep a seat. The delete repeats the invitation checks.
+  const unseat = env.HOSTED_DB.prepare(`DELETE FROM seating_assignments WHERE event_id = ? AND guest_id = ?
+    AND EXISTS (SELECT 1 FROM guests g JOIN events e ON e.event_id = g.event_id WHERE ${active})`)
+    .bind(verified.eventId, verified.guestId, ...scope);
+  const [saved] = await env.HOSTED_DB.batch(answer === "no" ? [save, unseat] : [save]);
+  const result = saved.results[0];
   if (!result) {
     const identical = await env.HOSTED_DB.prepare(`SELECT 1 FROM rsvps r JOIN guests g
       ON r.event_id = g.event_id AND r.guest_id = g.guest_id JOIN events e ON e.event_id = g.event_id

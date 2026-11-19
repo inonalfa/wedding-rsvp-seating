@@ -309,10 +309,14 @@ async function route(request: Request, env: AuthEnv, owner: string, now: number,
           db.prepare("DELETE FROM rsvps WHERE event_id = ? AND guest_id = ?").bind(eventId, guestId),
         ]);
       } else {
-        await db.prepare(`INSERT INTO rsvps(event_id, guest_id, attendance, guest_count, note, updated_at, source)
+        const save = db.prepare(`INSERT INTO rsvps(event_id, guest_id, attendance, guest_count, note, updated_at, source)
           VALUES (?, ?, ?, ?, ?, ?, 'owner') ON CONFLICT(event_id, guest_id) DO UPDATE SET attendance = excluded.attendance,
           guest_count = excluded.guest_count, note = COALESCE(excluded.note, rsvps.note), updated_at = excluded.updated_at, source = 'owner'`)
-          .bind(eventId, guestId, answer.attendance, answer.count, answer.note, now).run();
+          .bind(eventId, guestId, answer.attendance, answer.count, answer.note, now);
+        // A guest who is not coming must not keep a seat.
+        await db.batch(answer.attendance === "no"
+          ? [save, db.prepare("DELETE FROM seating_assignments WHERE event_id = ? AND guest_id = ?").bind(eventId, guestId)]
+          : [save]);
       }
       return json(await state(env, owner, now));
     }

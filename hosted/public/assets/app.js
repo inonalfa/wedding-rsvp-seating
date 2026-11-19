@@ -1,5 +1,6 @@
 // Owner app and local-only demo. One UI, two data backends: the JSON API (/api/app) or localStorage.
 import { esc, hebrewDate, invitationMarkup } from "./invitation-view.js";
+import { waLink } from "./whatsapp.js";
 
 const root = document.getElementById("app");
 const DEMO = root.dataset.mode === "demo";
@@ -159,6 +160,7 @@ const local = {
         const used = data.guests.filter(g => g.id !== id && g.tableId === guest.tableId && g.attendance === "yes").reduce((s, g) => s + g.count, 0);
         if (table && used + count > table.capacity) guest.tableId = null;
       }
+      if (answer.attendance === "no") guest.tableId = null;
       Object.assign(guest, { attendance: answer.attendance, count, note: answer.note?.trim().slice(0, 500) || guest.note || null, updatedAt: Date.now(), source });
     }
     return this.save(data);
@@ -305,11 +307,6 @@ function relTime(ms) {
 function daysLeft(date) {
   const diff = Math.ceil((Date.parse(date + "T00:00:00") - Date.now()) / 86_400_000);
   return diff;
-}
-function waLink(phone, text) {
-  let digits = String(phone || "").replace(/[^\d]/g, "");
-  if (digits.startsWith("0")) digits = "972" + digits.slice(1);
-  return "https://wa.me/" + digits + "?text=" + encodeURIComponent(text);
 }
 function defaultTemplate() {
   const d = S.data.event.details;
