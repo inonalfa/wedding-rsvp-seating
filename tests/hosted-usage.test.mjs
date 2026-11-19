@@ -41,7 +41,7 @@ test("missing or failed usage refresh closes admission without changing the last
     respond(payload({ ...good, d1QueriesAdaptiveGroups: [{ sum: { rowsRead: 0 } }] })),
     respond(payload({ ...good, d1QueriesAdaptiveGroups: [{ sum: null }] })),
     respond({ data: null }),
-    respond({ ...payload(good), errors: null }),
+    respond({ ...payload(good), errors: "unexpected" }),
     respond({ ...payload(good), errors: [{ message: "partial response" }] }),
     async () => new Response("unavailable", { status: 503 }),
     async () => { throw new Error("network failure"); },
@@ -93,4 +93,19 @@ test("Analytics preflight shares runtime variables, schema and strict aggregate 
   assert.equal(validateUsageSchema({ data: { __type: null } }), false);
   assert.deepEqual(parseUsagePayload(zero), [0, 0, 0]);
   assert.equal(parseUsagePayload(payload({ workersInvocationsAdaptive: [], d1QueriesAdaptiveGroups: [] })), null);
+});
+
+test("GraphQL success with errors: null or [] is accepted; non-empty errors still fail", async t => {
+  const schema = { data: { __type: { name: "ZoneWorkersRequestsFilter_InputObject", kind: "INPUT_OBJECT", inputFields: [
+    { name: "datetimeHour_geq" }, { name: "datetimeHour_leq" },
+  ] } } };
+  assert.equal(validateUsageSchema({ ...schema, errors: null }), true);
+  assert.equal(validateUsageSchema({ ...schema, errors: [] }), true);
+  assert.equal(validateUsageSchema({ ...schema, errors: [{ message: "denied" }] }), false);
+  assert.deepEqual(parseUsagePayload({ ...payload(good), errors: null }), [12, 500, 200]);
+  assert.deepEqual(parseUsagePayload({ ...payload(good), errors: [] }), [12, 500, 200]);
+  assert.equal(parseUsagePayload({ ...payload(good), errors: [{ message: "partial response" }] }), null);
+  const { db, env } = fixture(t);
+  assert.equal(await refreshUsage(env, now, respond({ ...payload(good), errors: null })), true);
+  assert.equal(await hasHeadroom(db, now), true);
 });
