@@ -31,8 +31,8 @@ export function usageVariables(account: string, now: number) {
 }
 
 export function validateUsageSchema(payload: unknown) {
-  const result = payload as { errors?: unknown[]; data?: { __type?: { name?: unknown; kind?: unknown; inputFields?: Array<{ name?: unknown }> } | null } };
-  if (result.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) return false;
+  const result = payload as { errors?: unknown[] | null; data?: { __type?: { name?: unknown; kind?: unknown; inputFields?: Array<{ name?: unknown }> } | null } };
+  if (result.errors !== undefined && result.errors !== null && (!Array.isArray(result.errors) || result.errors.length !== 0)) return false;
   const type = result.data?.__type;
   if (!type || type.name !== "ZoneWorkersRequestsFilter_InputObject" || type.kind !== "INPUT_OBJECT" || !Array.isArray(type.inputFields)) return false;
   const fields = new Set(type.inputFields.map(field => field?.name));
@@ -47,7 +47,7 @@ export function parseUsagePayload(payload: unknown): [number, number, number] | 
       d1QueriesAdaptiveGroups?: Array<{ sum?: { rowsRead?: unknown; rowsWritten?: unknown } | null } | null> | null;
     }> } };
   };
-  if (result.errors !== undefined && (!Array.isArray(result.errors) || result.errors.length !== 0)) return null;
+  if (result.errors !== undefined && result.errors !== null && (!Array.isArray(result.errors) || result.errors.length !== 0)) return null;
   const accounts = result.data?.viewer?.accounts;
   const account = Array.isArray(accounts) && accounts.length === 1 ? accounts[0] : null;
   if (!account || !Array.isArray(account.workersInvocationsAdaptive) || !Array.isArray(account.d1QueriesAdaptiveGroups)) return null;
