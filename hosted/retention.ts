@@ -5,10 +5,10 @@ import { sessionOwner, type AuthEnv } from "./auth";
 
 const day = 86_400_000;
 const exportQueries = {
-  event: "SELECT event_id,title,event_date,time_zone,purge_at FROM events WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
-  guests: "SELECT guest_id,name,max_guests FROM guests WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
-  rsvps: "SELECT guest_id,attendance,guest_count FROM rsvps WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
-  tables: "SELECT table_id,table_number,capacity FROM seating_tables WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
+  event: "SELECT event_id,title,event_date,time_zone,purge_at,details FROM events WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
+  guests: "SELECT guest_id,name,max_guests,phone,group_name FROM guests WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
+  rsvps: "SELECT guest_id,attendance,guest_count,note,updated_at,source FROM rsvps WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
+  tables: "SELECT table_id,table_number,capacity,label FROM seating_tables WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
   assignments: "SELECT guest_id,table_id FROM seating_assignments WHERE event_id=(SELECT event_id FROM events WHERE event_id=? AND owner_id=? AND purge_at>?)",
 };
 

@@ -34,46 +34,61 @@ async function signIn(page: Page, subject: string) {
     callback.searchParams.set("code", subject + ":" + auth.searchParams.get("nonce"));
     await route.fulfill({ response, headers: { ...headers, location: callback.href } });
   });
-  await page.goto(origin);
-  await page.getByRole("link", { name: "התחברות באמצעות Google" }).click();
+  await page.goto(origin + "/auth/login");
   await expect(page.locator("[name=cf-turnstile-response]")).toHaveCount(1);
+  await expect(page.locator("input[type=password]")).toHaveCount(0);
   await page.getByRole("button", { name: "המשך עם Google" }).click();
-  await expect(page.getByRole("heading", { name: "האירועים שלי" })).toBeVisible();
+  await expect(page).toHaveURL(origin + "/app");
 }
 
-test("hosted couple signs up, imports, shares, receives RSVP, seats and prints in isolation", async ({ page, browser }) => {
-  await signIn(page, "owner-a");
-  await page.getByLabel("שם האירוע").fill("אירוע בדיקה פיקטיבי");
-  await page.getByLabel("תאריך", { exact: true }).fill(new Date(Date.now() + 7 * 86400_000).toISOString().slice(0, 10));
-  await page.getByRole("button", { name: "יצירת אירוע" }).click();
-  await expect(page.getByRole("heading", { name: "אירוע בדיקה פיקטיבי" })).toBeVisible();
-  const eventUrl = page.url();
-  await page.getByLabel("קובץ מוזמנים").setInputFiles({
-    name: "fictional.csv", mimeType: "text/csv", buffer: Buffer.from("name,max_guests\nנועה בדיקה,2"),
-  });
-  await page.getByRole("button", { name: "ייבוא מוזמנים" }).click();
-  await page.getByRole("link", { name: "קישור להזמנה", exact: true }).click();
-  const invite = await page.getByLabel("קישור להזמנה").inputValue();
-  await expect(page.getByRole("link", { name: "שיתוף בוואטסאפ" })).toHaveAttribute("href", /^https:\/\/wa\.me\//);
+const inDays = (days: number) => new Date(Date.now() + days * 86400_000).toISOString().slice(0, 10);
 
-  const guest = await browser.newPage();
+async function createEvent(page: Page, a: string, b: string) {
+  await expect(page.getByRole("heading", { name: /ספרו לנו על האירוע/ })).toBeVisible();
+  await page.getByLabel("שם הכלה / בן הזוג").fill(a);
+  await page.getByLabel("שם החתן / בת הזוג").fill(b);
+  await page.getByLabel("תאריך האירוע").fill(inDays(7));
+  await page.getByLabel("מקום האירוע").fill("גן פיקטיבי");
+  await page.getByRole("button", { name: "יצירת האירוע" }).click();
+  await expect(page.getByRole("heading", { name: "פרטי האירוע" })).toBeVisible();
+}
+
+test("hosted couple signs up, adds guests, shares, receives RSVP, seats and prints in isolation", async ({ page, browser }) => {
+  await signIn(page, "owner-a");
+  await createEvent(page, "נועה", "עידו");
+  await page.getByRole("link", { name: "מוזמנים", exact: true }).click();
+  await page.getByLabel("שם", { exact: true }).fill("נועה בדיקה");
+  await page.getByLabel("כמות", { exact: true }).fill("2");
+  await page.getByRole("button", { name: "הוספה" }).click();
+  await expect(page.getByRole("cell", { name: /נועה בדיקה/ })).toBeVisible();
+  await page.getByRole("link", { name: "שליחה", exact: true }).click();
+  const [guest] = await Promise.all([page.waitForEvent("popup"), page.getByRole("button", { name: "פתיחה" }).click()]);
   await challenge(guest);
-  await guest.goto(invite);
+  await guest.reload();
+  await expect(guest.getByRole("heading", { name: /נועה/ })).toBeVisible();
   await expect(guest.locator("[name=cf-turnstile-response]")).toHaveCount(1);
   await guest.getByLabel("כמות מגיעים").selectOption("2");
+  await guest.getByLabel(/ברכה או הערה/).fill("מזל טוב מהבדיקה");
   await guest.getByRole("button", { name: "מאשרים הגעה" }).click();
   await expect(guest.getByRole("status")).toContainText("התשובה נשמרה");
-  await page.goto(eventUrl);
-  await expect(page.getByText("אישרו: 2")).toBeVisible();
-  await page.getByRole("link", { name: "סידורי הושבה" }).click();
-  await page.getByLabel("מספר שולחן").fill("1");
-  await page.getByRole("button", { name: "הוספת שולחן" }).click();
-  await page.getByLabel(/נועה בדיקה/).selectOption({ label: "שולחן 1" });
-  await page.getByRole("button", { name: "שמירת שיבוץ" }).click();
+
+  await page.getByRole("link", { name: "סקירה", exact: true }).click();
+  await page.reload();
+  await expect(page.getByText("מזל טוב מהבדיקה")).toBeVisible();
+  await page.getByRole("link", { name: "הושבה", exact: true }).click();
+  await page.getByRole("button", { name: "הוספת שולחנות" }).first().click();
+  await page.locator("dialog").getByRole("button", { name: "הוספה" }).click();
+  await page.getByRole("button", { name: /נועה בדיקה/ }).click();
+  await page.locator("dialog select").selectOption({ label: "שולחן 1 (12 פנויים)" });
+  await page.locator("dialog").getByRole("button", { name: "שיבוץ" }).click();
+  await expect(page.locator(".seat-table").getByText("נועה בדיקה")).toBeVisible();
   await guest.reload();
   await expect(guest.getByText("השולחן שלכם: 1")).toBeVisible();
   await guest.close();
-  await page.getByRole("link", { name: "גרסה להדפסה ולשמירה כ-PDF" }).click();
+
+  const eventId = await page.evaluate(async () => (await (await fetch("/api/app/state")).json()).event.id);
+  const eventUrl = origin + "/events/" + eventId;
+  await page.goto(eventUrl + "/seating/print");
   await expect(page.getByText("נועה בדיקה (2)")).toBeVisible();
   expect((await page.pdf()).subarray(0, 5).toString()).toBe("%PDF-");
 
@@ -81,6 +96,36 @@ test("hosted couple signs up, imports, shares, receives RSVP, seats and prints i
   await signIn(other, "owner-b");
   const denied = await other.goto(eventUrl);
   expect(denied?.status()).toBe(404);
+  await other.goto(origin + "/app");
+  await expect(other.getByRole("heading", { name: /ספרו לנו על האירוע/ })).toBeVisible();
   await expect(other.getByText("נועה בדיקה")).toHaveCount(0);
   await other.close();
+});
+
+test("demo keeps data in the browser and moves it into a new Google account", async ({ page }) => {
+  await challenge(page);
+  await page.goto(origin);
+  await page.getByRole("navigation", { name: "תפריט ראשי" }).getByRole("link", { name: "הדגמה" }).click();
+  await createEvent(page, "מאיה", "עומר");
+  expect(await page.evaluate(() => localStorage.getItem("wedding-demo-v1"))).toContain("מאיה");
+  await page.getByRole("link", { name: "מוזמנים", exact: true }).click();
+  await page.getByRole("button", { name: "הדבקה מאקסל / ייבוא" }).click();
+  await page.locator("dialog textarea").fill("שם\tכמות\tטלפון\tקבוצה\nמשפחת אבן\t4\t0523334444\tמשפחה\nגלית\t1\t\tעבודה");
+  await page.getByRole("button", { name: "המשך" }).click();
+  await page.getByRole("button", { name: "הוספת 2 מוזמנים" }).click();
+  await expect(page.getByRole("cell", { name: /משפחת אבן/ })).toBeVisible();
+
+  await page.getByRole("button", { name: "הדגמה" }).click();
+  await page.getByRole("link", { name: "יצירת חשבון ושמירת הנתונים" }).click();
+  await expect(page.getByRole("heading", { name: "יצירת חשבון" })).toBeVisible();
+  await expect(page.locator("input[type=password]")).toHaveCount(0);
+  await signIn(page, "owner-c");
+  await expect(page.getByRole("heading", { name: "מצאנו נתונים מההדגמה" })).toBeVisible();
+  await page.getByRole("button", { name: "העברה לחשבון" }).click();
+  await expect(page.getByRole("heading", { name: "מאיה & עומר" })).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem("wedding-demo-v1"))).toBeNull();
+  await page.getByRole("link", { name: "מוזמנים", exact: true }).click();
+  await expect(page.getByRole("cell", { name: /משפחת אבן/ })).toBeVisible();
+  await page.goto(origin + "/privacy");
+  await expect(page.getByRole("heading", { name: "מדיניות פרטיות" })).toBeVisible();
 });

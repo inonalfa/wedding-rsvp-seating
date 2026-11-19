@@ -31,7 +31,7 @@ test("hosted OAuth requests use PKCE and reject callbacks before exchange when s
     const cb = await authRoute(new Request(origin + "/auth/callback?code=test&state=" + state, {
       headers: { cookie: cookie.split(";")[0] },
     }), env, now, fetcher);
-    assert.equal(cb.headers.get("location"), "/?signin=failed");
+    assert.equal(cb.headers.get("location"), "/auth/login?signin=failed");
   }
   assert.equal(exchanges, 0);
   const logout = await authRoute(new Request(origin + "/auth/logout", {

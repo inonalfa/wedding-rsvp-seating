@@ -10,7 +10,7 @@ import { invitationKey, signInvitation } from "../hosted/invites.ts";
 test("a signed-in owner can create one event, and other owners cannot read it", async () => {
   const sql = new DatabaseSync(":memory:");
   try {
-    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql", "0006_connectors.sql", "0007_usage.sql", "0008_usage_refresh_status.sql"]) {
+    for (const name of ["0001_tenants.sql", "0002_sessions.sql", "0003_guest_quota.sql", "0004_invite_revocation.sql", "0005_retention.sql", "0006_connectors.sql", "0007_usage.sql", "0008_usage_refresh_status.sql", "0009_product.sql"]) {
       sql.exec(readFileSync(new URL("../hosted/migrations/" + name, import.meta.url), "utf8"));
     }
     sql.exec("PRAGMA foreign_keys=ON");
@@ -39,7 +39,7 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
       }
     } } };
     for (const owner of ["a", "b"]) {
-      sql.prepare("INSERT INTO accounts VALUES (?, ?, 0)").run(owner, owner);
+      sql.prepare("INSERT INTO accounts(id, provider_subject, created_at) VALUES (?, ?, 0)").run(owner, owner);
       const hash = createHash("sha256").update(owner.repeat(43)).digest("base64url");
       sql.prepare("INSERT INTO sessions VALUES (?, ?, ?)").run(hash, owner, Date.now() + 86400_000);
     }
@@ -161,7 +161,7 @@ test("a signed-in owner can create one event, and other owners cannot read it", 
 
     assert.doesNotMatch(await (await get("/", "b")).text(), /Fictional event/);
     for (let i = 0; i < 19; i++) {
-      sql.prepare("INSERT INTO accounts VALUES (?, ?, 0)").run(String(i), String(i));
+      sql.prepare("INSERT INTO accounts(id, provider_subject, created_at) VALUES (?, ?, 0)").run(String(i), String(i));
       sql.prepare("INSERT INTO events(event_id, owner_id, title, event_date, time_zone, purge_at) VALUES (?, ?, 'Sample', '2027-06-10', 'Asia/Jerusalem', ?)").run(String(i), String(i), Date.now() + 60_000);
     }
     const hash = createHash("sha256").update("a".repeat(43)).digest("base64url");

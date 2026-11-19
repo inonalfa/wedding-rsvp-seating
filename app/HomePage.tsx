@@ -73,17 +73,33 @@ function VenueMap() {
 
 type DemoLinks = { inviteHref: string; tableSearchPublic: boolean };
 
-function DemoTryBox({ links }: { links: DemoLinks }) {
-  return <aside className="demo-try" aria-labelledby="demo-try-title">
-    <div><p className="eyebrow">סביבת הדגמה פתוחה</p><h2 id="demo-try-title">נסו את המערכת</h2><p>כל השמות והנתונים בדמו פיקטיביים. אפשר למלא אישור הגעה ולחזור על התהליך בלי לפגוע במבקר הבא.</p></div>
-    <nav aria-label="קישורי התנסות בדמו">
-      <a className="demo-try-primary" href={links.inviteHref}>פתיחת הזמנה אישית לדוגמה <Icon name="arrow" /></a>
-      {links.tableSearchPublic
-        ? <a href="/find-table">חיפוש שולחן בעברית <Icon name="external" /></a>
-        : <span>חיפוש השולחן מוגן בסיסמת צוות</span>}
-      <a href="/admin">ניהול - הסיסמה זמינה לפי בקשה <Icon name="external" /></a>
-    </nav>
-  </aside>;
+/** Demo entry in the main menu: a native disclosure, so it works without JavaScript and with the keyboard. */
+function DemoMenu({ links }: { links: DemoLinks }) {
+  const menu = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    function close(event: Event) {
+      if (!menu.current?.open) return;
+      if (event instanceof KeyboardEvent ? event.key === "Escape" : !menu.current.contains(event.target as Node)) menu.current.open = false;
+    }
+    document.addEventListener("click", close);
+    document.addEventListener("keydown", close);
+    return () => { document.removeEventListener("click", close); document.removeEventListener("keydown", close); };
+  }, []);
+  return <details className="demo-menu" ref={menu}>
+    <summary>הדגמה</summary>
+    <div className="demo-menu-pop" role="group" aria-labelledby="demo-try-title">
+      <p className="eyebrow">הדגמה - נתונים פיקטיביים בלבד</p>
+      <h2 id="demo-try-title">נסו את המערכת</h2>
+      <p>זו סביבה משותפת. כל השמות פיקטיביים, ושינויים נשמרים זמנית ועשויים להתאפס. אפשר למלא אישור הגעה ולחזור על התהליך בלי לפגוע במבקר הבא.</p>
+      <nav aria-label="קישורי התנסות בדמו">
+        <a className="demo-try-primary" href={links.inviteHref}>פתיחת הזמנה אישית לדוגמה <Icon name="arrow" /></a>
+        {links.tableSearchPublic
+          ? <a href="/find-table">חיפוש שולחן בעברית <Icon name="external" /></a>
+          : <span>חיפוש השולחן מוגן בסיסמת צוות</span>}
+        <a href="/admin">ניהול - הסיסמה זמינה לפי בקשה <Icon name="external" /></a>
+      </nav>
+    </div>
+  </details>;
 }
 
 export default function Home({ demoLinks }: { demoLinks?: DemoLinks }) {
@@ -175,10 +191,9 @@ export default function Home({ demoLinks }: { demoLinks?: DemoLinks }) {
   return <main className="wedding-site" dir="rtl" ref={root}>
     <a className="skip-link" href="#rsvp-form">דילוג לטופס אישור ההגעה</a>
     <OpeningMoment />
-    {demoLinks && <DemoTryBox links={demoLinks} />}
     <header className="floating-nav" ref={nav}>
       <a className="brand-link" href="#top" aria-label={`${eventHosts}, חזרה לראש העמוד`}><Monogram /></a>
-      <nav className="nav-links" aria-label="ניווט בהזמנה"><a href="#celebrate">הערב שלנו</a><a href="#directions">איך מגיעים</a></nav>
+      <nav className="nav-links" aria-label="ניווט בהזמנה"><a href="#celebrate">הערב שלנו</a><a href="#directions">איך מגיעים</a>{demoLinks && <DemoMenu links={demoLinks} />}</nav>
       <a className="nav-cta" href="#rsvp">{saved ? "עדכון האישור" : "אישור הגעה"}<Icon name="external" /></a>
     </header>
 

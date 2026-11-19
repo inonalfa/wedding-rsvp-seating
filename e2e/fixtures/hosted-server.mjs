@@ -1,4 +1,6 @@
-import { readFileSync, readdirSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { extname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { createServer } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { createHostedWorker } from "../../hosted/worker.ts";
@@ -34,6 +36,7 @@ const HOSTED_DB = {
 };
 const rate = { limit: async () => ({ success: true }) };
 const env = {
+  HOSTED_CONTACT_EMAIL: "privacy@example.test",
   HOSTED_DB, HOSTED_ORIGIN: origin, GOOGLE_CLIENT_ID: "fictional-client", GOOGLE_CLIENT_SECRET: "fictional",
   HOSTED_AUTH_SECRET: Buffer.alloc(32, 1).toString("base64url"), HOSTED_INVITE_SECRET: Buffer.alloc(32, 2).toString("base64url"),
   TURNSTILE_SITE_KEY: "fictional-site", TURNSTILE_SECRET: "fictional-secret",
@@ -45,11 +48,21 @@ const jwk = await crypto.subtle.exportKey("jwk", keys.publicKey);
 const b64 = value => Buffer.from(JSON.stringify(value)).toString("base64url");
 const challenges = new Set();
 const usedCodes = new Set();
+const publicDir = fileURLToPath(new URL("../../hosted/public/", import.meta.url));
+const types = { ".js": "text/javascript", ".css": "text/css", ".svg": "image/svg+xml", ".woff": "font/woff", ".txt": "text/plain" };
+// Mirrors Workers static assets: files under hosted/public are served before the Worker runs.
+const ASSETS = { async fetch(request) {
+  const path = decodeURIComponent(new URL(request.url).pathname);
+  const file = publicDir + path.replace(/^\/+/, "");
+  if (path.includes("..") || !existsSync(file) || !statSync(file).isFile()) return new Response("Not found", { status: 404 });
+  return new Response(readFileSync(file), { headers: { "Content-Type": types[extname(file)] ?? "application/octet-stream", "Cache-Control": "no-cache" } });
+} };
+env.ASSETS = ASSETS;
 const worker = createHostedWorker(async (url, init) => {
   if (url === "https://challenges.cloudflare.com/turnstile/v0/siteverify") {
     const value = init.body.get("response");
     const action = value.split(":")[0];
-    const success = !challenges.has(value) && /^(login|rsvp):[a-f0-9-]{36}$/.test(value);
+    const success = !challenges.has(value) && /^(login|signup|rsvp):[a-f0-9-]{36}$/.test(value);
     challenges.add(value);
     return Response.json({ success, hostname: "127.0.0.1", action });
   }
@@ -59,7 +72,7 @@ const worker = createHostedWorker(async (url, init) => {
   if (url === "https://oauth2.googleapis.com/token") {
     const code = init.body.get("code");
     const [subject, nonce] = code.split(":");
-    if (!nonce || !["owner-a", "owner-b"].includes(subject) || usedCodes.has(code)) return new Response(null, { status: 400 });
+    if (!nonce || !["owner-a", "owner-b", "owner-c"].includes(subject) || usedCodes.has(code)) return new Response(null, { status: 400 });
     usedCodes.add(code);
     const now = Math.floor(Date.now() / 1000);
     const unsigned = b64({ alg: "RS256", kid: "fixture" }) + "." + b64({

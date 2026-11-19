@@ -70,6 +70,19 @@ Keep the demo Worker, demo D1, its Wrangler config and DEMO_PATCH unchanged. Kee
 Confirm Google-only launch and recovery policy; accept a 20-event pilot and the 90-day purge policy; decide whether calendar + in-app notices suffice; obtain legal review and choose launch jurisdiction; pick who monitors quotas and responds to abuse. Shared provider outages, signup spikes, quota exhaustion, 10 ms CPU and legal review may delay launch. Hosted acceptance is gated on full end-to-end and tenant-isolation tests, zero-cost deployment evidence and green main. The hosted Playwright journey runs against the same route handlers and SQLite migrations with fictional local Google and Turnstile responses, separate from the existing demo tests. A real Free account smoke run and pilot load measurement remain operator deployment gates. The [deployment guide](hosted-deploy.md) supplies the operator-only one-command deploy and a dry run. No production provisioning is part of development.
 
 
+## Product slice: owner app, passwords, photos and local demo
+
+Decisions in this slice, which revise the launch choices above:
+
+- **Google is the only sign-in by default** (owner decision: free service, very few users). Username and password accounts remain in the code behind `HOSTED_PASSWORD_LOGIN=1`; with the flag unset their routes return 404 and the sign-in pages show only Google.
+- **Username and password accounts**, when enabled: Passwords are hashed with PBKDF2-SHA256 at 100,000 iterations (the Workers maximum) and a random salt; the iteration count is stored with each hash. There is no e-mail delivery, so there is no password reset: the sign-up page says so and recommends Google. Unknown usernames cost the same work as real ones. Sign-up and sign-in require Turnstile and share the login rate limit. **Cost note:** a PBKDF2 verification takes tens of milliseconds of CPU, which exceeds the 10 ms Workers Free limit. Expect intermittent failures on Free; Workers Paid removes the issue, but the deploy guard currently refuses paid accounts.
+- **Photos** (cover, couple, designed invitation) are resized and re-encoded as JPEG in the browser, limited to 800 KB each, type-checked by magic bytes on the server and stored as D1 BLOBs. At the 20-event cap that is at most about 48 MB. They are served from random, replaceable IDs with `nosniff`, a sandbox CSP and a one-day cache, and they are deleted with the event. R2 remains unused.
+- **Invitation details** are a validated JSON column on `events`. Guest rows gain an optional phone and group, RSVPs gain a note, a timestamp and a source (`guest` or `owner`), and tables gain a label. Migration `0009_product.sql` adds them.
+- **Owner app**: `/app` is a static single-page app (`hosted/public`, served by Workers static assets, which do not count as Worker requests) over a JSON API at `/api/app/*`. The API derives the owner from the session, checks the `Origin` header and requires `application/json` on writes, and scopes every query to the owner's active event. `OWNER_LIMIT` is raised from 30 to 120 per minute because seating and guest editing are interactive. The original server-rendered owner pages remain for export, deletion, the reminder file and the printable seating list.
+- **Demo**: `/demo` runs the same app against `localStorage` and never calls the API. After sign-up or sign-in, an account without an event is offered the demo data (details, guests, tables, then photos). Simulated RSVPs and seat assignments are not moved.
+
+- **Policies**: `/privacy` and `/terms` render Hebrew drafts written from the actual data flows (Google subject only, couple-entered guest data, Cloudflare processing, 90-day purge, 7-day provider backups). They carry a visible draft notice; legal review is still a launch gate.
+
 ## Implementation record
 
 - [#6](https://github.com/inonalfa/wedding-rsvp-seating/pull/6): design and source-checked cost model.

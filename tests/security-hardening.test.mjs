@@ -174,7 +174,7 @@ test('hosted invites can be revoked per guest and a public origin must be https'
   const owner = 'owner-account';
   const eventId = '10000000-0000-4000-8000-000000000001';
   const guestId = '30000000-0000-4000-8000-000000000003';
-  sql.prepare('INSERT INTO accounts VALUES (?, ?, ?)').run(owner, owner, now);
+  sql.prepare('INSERT INTO accounts(id, provider_subject, created_at) VALUES (?, ?, ?)').run(owner, owner, now);
   sql.prepare('INSERT INTO sessions VALUES (?, ?, ?)').run(createHash('sha256').update('a'.repeat(43)).digest('base64url'), owner, now + 86_400_000);
   sql.prepare('INSERT INTO events (event_id, owner_id, title, event_date, time_zone, purge_at) VALUES (?, ?, ?, ?, ?, ?)').run(eventId, owner, 'חתונה', '2027-06-10', 'Asia/Jerusalem', now + 86_400_000);
   sql.prepare('INSERT INTO guests (event_id, guest_id, name, max_guests) VALUES (?, ?, ?, ?)').run(eventId, guestId, 'נועה', 2);

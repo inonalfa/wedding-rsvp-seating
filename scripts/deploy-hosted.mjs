@@ -61,6 +61,8 @@ async function run() {
   if (secrets.HOSTED_AUTH_SECRET === secrets.HOSTED_INVITE_SECRET) throw new Error("Use separate signing keys");
   const vars = Object.fromEntries(["HOSTED_ORIGIN", "GOOGLE_CLIENT_ID", "TURNSTILE_SITE_KEY", "HOSTED_OPERATOR_SUB", "CF_ACCOUNT_ID"]
     .map(name => [name, required(name)]));
+  // Optional: shown on /privacy and /terms. Password sign-in stays off unless HOSTED_PASSWORD_LOGIN=1 is set on purpose.
+  for (const name of ["HOSTED_CONTACT_EMAIL", "HOSTED_PASSWORD_LOGIN"]) if (process.env[name]?.trim()) vars[name] = process.env[name].trim();
   const [subscriptions, remoteDb] = await Promise.all([
     api("/accounts/" + account + "/subscriptions", token),
     api("/accounts/" + account + "/d1/database/" + database, token),
@@ -77,6 +79,7 @@ async function run() {
     const config = join(work, "wrangler.jsonc");
     const secretFile = join(work, "secrets.json");
     writeFileSync(config, JSON.stringify({ ...base, account_id: account, main: "../worker.ts", vars,
+      assets: { ...base.assets, directory: "../public" },
       d1_databases: [{ ...binding, database_id: database, migrations_dir: "../migrations" }] }), { mode: 0o600 });
     writeFileSync(secretFile, JSON.stringify(secrets), { mode: 0o600 });
     wrangler("d1", "migrations", "apply", binding.database_name, "--remote", "--config", relative(root, config));

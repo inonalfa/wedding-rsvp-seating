@@ -20,6 +20,12 @@ This is a limited pilot, free to use, with no SLA and no guaranteed capacity. Do
 | `HOSTED_OPERATOR_SUB` | The Google OIDC subject of the operator, never an email or arbitrary user ID. Get it from a trusted verified Google sign-in for your account. |
 | `CF_ANALYTICS_TOKEN` | Separate token, Account Analytics Read only, scoped to the dedicated account. |
 
+Static files under `hosted/public` (the owner app, styles and fonts) are uploaded as Workers static assets by the same command.
+
+Password sign-in is off unless `HOSTED_PASSWORD_LOGIN=1` is exported before deploying. It uses PBKDF2 with 100,000 iterations. On Workers Free its CPU time exceeds the 10 ms limit, so sign-in and sign-up with a password can fail intermittently there. Workers Paid avoids this, but `scripts/deploy-hosted.mjs` deliberately refuses accounts with paid subscriptions; moving to Paid is an owner decision that requires changing that guard. Until then, treat password sign-in on Free as best effort and prefer Google.
+
+Optional: export `HOSTED_CONTACT_EMAIL` to show a privacy contact on `/privacy` and `/terms`. A Hebrew step-by-step version of this guide is in [hosted-launch-he.md](hosted-launch-he.md).
+
 ## Deploy
 
 After `npm ci`, run:

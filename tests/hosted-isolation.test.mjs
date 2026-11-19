@@ -52,17 +52,17 @@ function fixture(t) {
   };
   const now = Date.now();
   for (const [owner, event, title, number] of [["a", a, "Alpha", 11], ["b", b, "Bravo", 22]]) {
-    sql.prepare("INSERT INTO accounts VALUES (?, ?, ?)").run(owner, owner, now);
+    sql.prepare("INSERT INTO accounts(id, provider_subject, created_at) VALUES (?, ?, ?)").run(owner, owner, now);
     sql.prepare("INSERT INTO sessions VALUES (?, ?, ?)").run(hash(owner.repeat(43)), owner, now + 86_400_000);
     sql.prepare("INSERT INTO events(event_id, owner_id, title, event_date, time_zone, purge_at) VALUES (?, ?, ?, '2027-06-10', 'Asia/Jerusalem', ?)").run(event, owner, title, now + 86_400_000);
     sql.prepare("INSERT INTO guests(event_id, guest_id, name, max_guests) VALUES (?, ?, 'Shared Guest', 2)").run(event, guest);
-    sql.prepare("INSERT INTO rsvps VALUES (?, ?, 'yes', ?)").run(event, guest, owner === "a" ? 1 : 2);
-    sql.prepare("INSERT INTO seating_tables VALUES (?, ?, ?, 10)").run(event, table, number);
+    sql.prepare("INSERT INTO rsvps(event_id, guest_id, attendance, guest_count) VALUES (?, ?, 'yes', ?)").run(event, guest, owner === "a" ? 1 : 2);
+    sql.prepare("INSERT INTO seating_tables(event_id, table_id, table_number, capacity) VALUES (?, ?, ?, 10)").run(event, table, number);
     sql.prepare("INSERT INTO seating_assignments VALUES (?, ?, ?)").run(event, guest, table);
   }
   sql.prepare("INSERT INTO guests(event_id, guest_id, name, max_guests) VALUES (?, ?, 'Bravo Private', 2)").run(b, foreignGuest);
-  sql.prepare("INSERT INTO seating_tables VALUES (?, ?, 12, 10)").run(a, move);
-  sql.prepare("INSERT INTO seating_tables VALUES (?, ?, 23, 10)").run(b, foreignTable);
+  sql.prepare("INSERT INTO seating_tables(event_id, table_id, table_number, capacity) VALUES (?, ?, 12, 10)").run(a, move);
+  sql.prepare("INSERT INTO seating_tables(event_id, table_id, table_number, capacity) VALUES (?, ?, 23, 10)").run(b, foreignTable);
   sql.prepare("INSERT INTO usage_snapshot VALUES (1, ?, 0, 0, 0, 0, ?, 1)").run(now, now);
   const allow = { limit: async () => ({ success: true }) };
   const env = {
@@ -134,7 +134,8 @@ test("two live tenants with overlapping IDs are isolated across owner, guest, st
   assert.equal((await request(staff.replace(a, b), null, { name: "Shared Guest" })).status, 404);
   assert.match(await (await request(staff, null, { name: "Shared Guest" })).text(), /role="status">שולחן 12</);
   assert.doesNotMatch(await (await request(staff, null, { name: "Bravo Private" })).text(), /role="status">שולחן /);
-  assert.equal((await request(invite, null, rsvp)).status, 303);
+  // A "yes" keeps the seat, so the export below still shows this tenant's assignment; a "no" would free it.
+  assert.equal((await request(invite, null, { attendance: "yes", guest_count: "1", "cf-turnstile-response": "test" })).status, 303);
   const api = id => "/api/connectors/" + id;
   assert.equal((await request(api(b), null, null, keyA)).status, 401);
   assert.equal((await request(api(a), null, null, keyB)).status, 401);

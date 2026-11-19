@@ -1,5 +1,6 @@
 import type { UsageEnv } from "./usage";
-import { checkChallenge, widget, type AbuseEnv } from "./abuse";
+import { checkChallenge, type AbuseEnv } from "./abuse";
+import { authPage, passwordRoute } from "./password";
 import { page, readForm } from "./http";
 import type { D1Database } from "@cloudflare/workers-types";
 
@@ -11,6 +12,9 @@ export interface AuthEnv extends AbuseEnv, UsageEnv {
   HOSTED_AUTH_SECRET?: string;
   HOSTED_INVITE_SECRET?: string;
   HOSTED_CONNECTOR_HMAC?: string;
+  HOSTED_PASSWORD_LOGIN?: string;
+  HOSTED_CONTACT_EMAIL?: string;
+  ASSETS?: { fetch(request: Request): Promise<Response> };
 }
 
 const encoder = new TextEncoder();
@@ -27,7 +31,7 @@ export function hostedOriginAllowed(origin: string | undefined) {
   }
 }
 
-const sessionCookie = "__Host-hosted_session";
+export const sessionCookie = "__Host-hosted_session";
 const loginCookie = "__Host-hosted_login";
 const sessionAgeMs = 86_400_000;
 const sessionCap = 5;
@@ -40,18 +44,18 @@ function decode(value: string) {
   if (!/^[\w-]+$/.test(value)) throw new Error("Invalid base64url");
   return Uint8Array.from(atob(value.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
 }
-function random() { return encode(crypto.getRandomValues(new Uint8Array(32))); }
-async function hash(value: string) {
+export function random() { return encode(crypto.getRandomValues(new Uint8Array(32))); }
+export async function hash(value: string) {
   return encode(new Uint8Array(await crypto.subtle.digest("SHA-256", encoder.encode(value))));
 }
-function getCookie(request: Request, name: string) {
+export function getCookie(request: Request, name: string) {
   return request.headers.get("cookie")?.split(";").map(x => x.trim())
     .find(x => x.startsWith(name + "="))?.slice(name.length + 1);
 }
-function cookie(name: string, value: string, age: number) {
+export function cookie(name: string, value: string, age: number) {
   return `${name}=${value}; Path=/; Max-Age=${age}; Secure; HttpOnly; SameSite=Lax`;
 }
-function redirect(url: string, cookies: string[] = []) {
+export function redirect(url: string, cookies: string[] = []) {
   const headers = new Headers({ Location: url, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
   for (const value of cookies) headers.append("Set-Cookie", value);
   return new Response(null, { status: 303, headers });
@@ -113,7 +117,7 @@ export async function sessionOwner(request: Request, env: AuthEnv, now = Date.no
 /** D1 executes the batch atomically, so simultaneous callbacks cannot exceed the cap. */
 export async function recordSession(db: D1Database, subject: string, tokenHash: string, now: number) {
   await db.batch([
-    db.prepare("INSERT INTO accounts VALUES (?, ?, ?) ON CONFLICT(provider_subject) DO NOTHING")
+    db.prepare("INSERT INTO accounts(id, provider_subject, created_at) VALUES (?, ?, ?) ON CONFLICT(provider_subject) DO NOTHING")
       .bind(crypto.randomUUID(), subject, now),
     db.prepare("INSERT INTO sessions SELECT ?, id, ? FROM accounts WHERE provider_subject = ?")
       .bind(tokenHash, now + sessionAgeMs, subject),
@@ -139,13 +143,13 @@ export async function authRoute(request: Request, env: AuthEnv, now = Date.now()
     }
     return redirect("/", [cookie(sessionCookie, "", 0)]);
   }
+  const local = await passwordRoute(request, env, now, fetcher);
+  if (local) return local;
+  if (url.pathname === "/auth/login" && request.method === "GET") {
+    return authPage(env, "login", url.searchParams.get("signin") === "failed" ? "ההתחברות לא הצליחה. נסו שוב." : "");
+  }
   if (!client || !clientSecret || !secret) return new Response("Sign-in unavailable", { status: 503 });
   const callback = origin + "/auth/callback";
-  if (url.pathname === "/auth/login" && request.method === "GET") {
-    const challenge = widget(env, "login");
-    if (!challenge) return page("ההתחברות אינה זמינה כרגע", "", 503);
-    return page("התחברות לשירות", `<form method="post">${challenge}<button>המשך עם Google</button></form>`, 200, true, true);
-  }
   if (request.method === "POST" && url.pathname === "/auth/login") {
     if (request.headers.get("origin") !== origin ||
         !await checkChallenge(env, await readForm(request, 4096), "login", fetcher)) {
@@ -175,8 +179,8 @@ export async function authRoute(request: Request, env: AuthEnv, now = Date.now()
     const subject = await verifyGoogleIdToken(idToken, client, login.nonce, now, fetcher);
     const token = random();
     await recordSession(env.HOSTED_DB, subject, await hash(token), now);
-    return redirect("/", [clear, cookie(sessionCookie, token, 86400)]);
+    return redirect("/app", [clear, cookie(sessionCookie, token, 86400)]);
   } catch {
-    return redirect("/?signin=failed", [clear]);
+    return redirect("/auth/login?signin=failed", [clear]);
   }
 }
