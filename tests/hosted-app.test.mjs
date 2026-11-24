@@ -255,11 +255,13 @@ test("by default only Google sign-in is offered and password routes are closed",
     assert.equal(response.status, 200);
     const text = await response.text();
     assert.match(text, /אישור הגעה פלוס/);
+    assert.match(text, /\/assets\/logo\.webp/);
     assert.match(text, /עדכון אחרון: 24\.11\.2026/);
     assert.match(text, /mailto:office@hamisrd\.co\.il/);
     assert.doesNotMatch(text, /טיוטה/);
   }
   const home = await (await get("/")).text();
+  assert.match(home, /\/assets\/logo\.webp/);
   assert.match(home, /href="\/privacy"/);
   assert.match(home, /href="\/terms"/);
 });

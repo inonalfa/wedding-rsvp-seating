@@ -10,8 +10,8 @@ export function page(title: string, markup: string, status = 200, turnstile = fa
   const google = googleRedirect || options.googleRedirect;
   const heading = options.bare ? "" : `<h1>${escapeHtml(title)}</h1>`;
   const frame = options.bare ? markup
-    : `<header class="site-bar"><a class="brand" href="/">אישור הגעה פלוס</a></header><main class="page-card">${heading}${markup}</main>`;
-  return new Response(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(title)}</title><link rel="icon" href="/assets/favicon.svg"><link rel="stylesheet" href="/assets/app.css">${options.head ?? ""}${useTurnstile ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>' : ""}</head><body class="${escapeHtml(options.bodyClass ?? "plain")}">${frame}</body></html>`, {
+    : `<header class="site-bar"><a class="brand" href="/"><img src="/assets/logo.webp" alt="אישור הגעה פלוס" width="160" height="94"></a></header><main class="page-card">${heading}${markup}</main>`;
+  return new Response(`<!doctype html><html lang="he" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>${escapeHtml(title)}</title><link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png"><link rel="icon" type="image/png" sizes="512x512" href="/assets/icon-512.png"><link rel="apple-touch-icon" href="/assets/apple-touch-icon.png"><link rel="stylesheet" href="/assets/app.css">${options.head ?? ""}${useTurnstile ? '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>' : ""}</head><body class="${escapeHtml(options.bodyClass ?? "plain")}">${frame}</body></html>`, {
     status, headers: {
       "Cache-Control": "no-store",
       "Content-Type": "text/html; charset=utf-8",

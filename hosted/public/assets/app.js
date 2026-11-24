@@ -441,7 +441,7 @@ function accountMenu() {
 function shell(content, active) {
   const ev = S.data.event;
   const nav = ev ? `<nav class="main-menu app-menu" aria-label="תפריט ראשי">${pages.map(([id, label]) => `<a href="#/${id}"${active === id ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>` : "";
-  return `<header class="site-bar app-bar"><a class="brand" href="${DEMO ? "/" : "#/"}">${DEMO ? "חתונה<span>.</span>בקליק" : "אישור הגעה פלוס"}</a>${nav}
+  return `<header class="site-bar app-bar"><a class="brand" href="${DEMO ? "/" : "#/"}">${DEMO ? "חתונה<span>.</span>בקליק" : `<img src="/assets/logo.webp" alt="אישור הגעה פלוס" width="160" height="94">`}</a>${nav}
     <div class="bar-end">${DEMO ? demoMenu() : accountMenu()}</div></header>
     <main class="app-main" id="main">${content}</main>`;
 }
