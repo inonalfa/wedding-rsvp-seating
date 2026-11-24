@@ -35,7 +35,8 @@ async function signIn(page: Page, subject: string) {
     await route.fulfill({ response, headers: { ...headers, location: callback.href } });
   });
   await page.goto(origin + "/auth/login");
-  await expect(page.locator("[name=cf-turnstile-response]")).toHaveCount(1);
+  await expect(page.locator("[name=cf-turnstile-response]")).toHaveCount(0);
+  await expect(page.locator(".cf-turnstile")).toHaveCount(0);
   await expect(page.locator("input[type=password]")).toHaveCount(0);
   await page.getByRole("button", { name: "המשך עם Google" }).click();
   await expect(page).toHaveURL(origin + "/app");

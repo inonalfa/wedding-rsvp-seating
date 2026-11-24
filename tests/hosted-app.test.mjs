@@ -242,10 +242,11 @@ test("by default only Google sign-in is offered and password routes are closed",
     const response = await get(path);
     const html = await response.text();
     const csp = response.headers.get("content-security-policy") ?? "";
-    assert.match(csp, /script-src[^;]*https:\/\/challenges\.cloudflare\.com/);
-    assert.match(csp, /frame-src[^;]*https:\/\/challenges\.cloudflare\.com/);
-    assert.match(csp, /connect-src[^;]*https:\/\/challenges\.cloudflare\.com/);
+    assert.match(csp, /connect-src 'self'/);
     assert.match(csp, /form-action 'self' https:\/\/accounts\.google\.com/);
+    assert.doesNotMatch(csp, /challenges\.cloudflare\.com/);
+    assert.doesNotMatch(html, /cf-turnstile/);
+    assert.doesNotMatch(html, /challenges\.cloudflare\.com/);
     assert.match(html, /המשך עם Google/);
     assert.doesNotMatch(html, /type="password"/);
     assert.match(html, /href="\/privacy"/);
