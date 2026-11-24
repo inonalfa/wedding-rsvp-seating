@@ -15,7 +15,7 @@ export function page(title: string, markup: string, status = 200, turnstile = fa
     status, headers: {
       "Cache-Control": "no-store",
       "Content-Type": "text/html; charset=utf-8",
-      "Content-Security-Policy": `default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'${google ? " https://accounts.google.com" : ""}; frame-ancestors 'none'; base-uri 'none'; script-src${useTurnstile ? " https://challenges.cloudflare.com" : ""} https://static.cloudflareinsights.com; connect-src${useTurnstile ? " https://challenges.cloudflare.com" : ""} https://cloudflareinsights.com` + (useTurnstile ? "; frame-src https://challenges.cloudflare.com" : ""),
+      "Content-Security-Policy": `default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'${google ? " https://accounts.google.com" : ""}; frame-ancestors 'none'; base-uri 'none'; script-src${useTurnstile ? " https://challenges.cloudflare.com" : ""} https://static.cloudflareinsights.com; connect-src 'self'${useTurnstile ? " https://challenges.cloudflare.com" : ""} https://cloudflareinsights.com` + (useTurnstile ? "; frame-src https://challenges.cloudflare.com" : ""),
       "Referrer-Policy": "same-origin",
       "X-Content-Type-Options": "nosniff",
     },

@@ -1,7 +1,7 @@
 import type { UsageEnv } from "./usage";
-import { checkChallenge, type AbuseEnv } from "./abuse";
+import type { AbuseEnv } from "./abuse";
 import { authPage, passwordRoute } from "./password";
-import { page, readForm } from "./http";
+import { page } from "./http";
 import type { D1Database } from "@cloudflare/workers-types";
 
 export interface AuthEnv extends AbuseEnv, UsageEnv {
@@ -151,8 +151,7 @@ export async function authRoute(request: Request, env: AuthEnv, now = Date.now()
   if (!client || !clientSecret || !secret) return new Response("Sign-in unavailable", { status: 503 });
   const callback = origin + "/auth/callback";
   if (request.method === "POST" && url.pathname === "/auth/login") {
-    if (request.headers.get("origin") !== origin ||
-        !await checkChallenge(env, await readForm(request, 4096), "login", fetcher)) {
+    if (request.headers.get("origin") !== origin) {
       return page("האימות נכשל", '<a href="/auth/login">נסו שוב</a>', 403);
     }
     const login = { state: random(), nonce: random(), verifier: random(), expires: now + 300_000 };

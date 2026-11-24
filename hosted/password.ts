@@ -94,20 +94,20 @@ const googleMark = '<svg class="g-mark" viewBox="0 0 24 24" aria-hidden="true"><
 export function authPage(env: AuthEnv, mode: "login" | "signup", message = "", status = 200, values: { username?: string; name?: string } = {}) {
   const loginChallenge = widget(env, "login");
   const signupChallenge = widget(env, "signup");
-  const available = mode === "login" ? Boolean(loginChallenge) : Boolean(signupChallenge);
   const alert = message ? `<p class="alert" role="alert">${escapeHtml(message)}</p>` : "";
   const passwords = passwordsEnabled(env);
-  const google = googleConfigured(env) && loginChallenge
-    ? `<form method="post" action="/auth/login" class="google-form">${loginChallenge.replace('class="cf-turnstile"', 'class="cf-turnstile" data-appearance="interaction-only"')}<button class="btn google">${googleMark}<span>המשך עם Google</span></button></form>${passwords ? '<div class="divider"><span>או</span></div>' : ""}`
+  const challenge = mode === "login" ? loginChallenge : signupChallenge;
+  const google = googleConfigured(env)
+    ? `<form method="post" action="/auth/login" class="google-form"><button class="btn google">${googleMark}<span>המשך עם Google</span></button></form>${passwords ? '<div class="divider"><span>או</span></div>' : ""}`
     : "";
-  if (!available || (!passwords && !google)) return page("ההתחברות אינה זמינה כרגע", "<p>נסו שוב מאוחר יותר.</p>", 503);
+  if (!google && (!passwords || !challenge)) return page("ההתחברות אינה זמינה כרגע", "<p>נסו שוב מאוחר יותר.</p>", 503);
   const legal = `<p class="muted small center">בהמשך אתם מאשרים את <a href="/terms">תנאי השימוש</a> ואת <a href="/privacy">מדיניות הפרטיות</a>.</p>`;
-  if (!passwords) {
+  if (!passwords || !challenge) {
     const intro = mode === "signup"
       ? "ההרשמה מתבצעת עם חשבון Google, ללא סיסמה נוספת. נתונים שהזנתם בהדגמה יועברו לחשבון אחרי הכניסה."
       : "הכניסה מתבצעת עם חשבון Google. אם זו הפעם הראשונה, ייווצר לכם חשבון.";
     return page(mode === "login" ? "כניסה לחשבון" : "יצירת חשבון", `<p class="lead">${intro}</p>${alert}${google}${legal}
-      <p class="muted center"><a href="/demo">לנסות קודם את ההדגמה</a></p>`, status, true, true, { bodyClass: "auth" });
+      <p class="muted center"><a href="/demo">לנסות קודם את ההדגמה</a></p>`, status, false, true, { bodyClass: "auth" });
   }
   const body = mode === "login"
     ? `${alert}${google}<form method="post" action="/auth/password" class="stack">
