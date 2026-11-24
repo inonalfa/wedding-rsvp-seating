@@ -65,6 +65,8 @@ input[type=checkbox], input[type=radio] { width: auto; min-height: 0; accent-col
 .site-bar { display: flex; align-items: center; gap: 1rem; padding: .7rem clamp(1rem, 3vw, 2rem); background: rgba(250,248,243,.92); backdrop-filter: blur(8px);
   border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 20; }
 .brand { font-family: var(--serif); font-size: 1.45rem; color: var(--brand); text-decoration: none; white-space: nowrap; }
+.brand img { display: block; height: 3.75rem; width: auto; }
+.landing-bar .brand img { height: 4.35rem; }
 .brand span { color: var(--gold); }
 .main-menu { display: flex; gap: .25rem; align-items: center; flex: 1; overflow-x: auto; scrollbar-width: none; }
 .main-menu::-webkit-scrollbar { display: none; }

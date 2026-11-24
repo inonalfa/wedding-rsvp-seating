@@ -52,8 +52,8 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
         const blocked = await limited(env.CLIENT_LIMIT, "media:" + await clientKey());
         return blocked ?? servePhoto(env.HOSTED_DB, media[1], Date.now());
       }
-      if (request.method === "GET" && url.pathname === "/privacy") return privacyPage(env.HOSTED_CONTACT_EMAIL);
-      if (request.method === "GET" && url.pathname === "/terms") return termsPage(env.HOSTED_CONTACT_EMAIL);
+      if (request.method === "GET" && url.pathname === "/privacy") return privacyPage();
+      if (request.method === "GET" && url.pathname === "/terms") return termsPage();
       if (url.pathname === "/demo" || url.pathname.startsWith("/demo/")) return appShell("demo");
       if (url.pathname.startsWith("/api/app/")) {
         const owner = await sessionOwner(request, env);
