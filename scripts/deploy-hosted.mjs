@@ -47,7 +47,7 @@ async function run() {
   if (!/^[a-f0-9]{32}$/i.test(account) || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(database) || !/[1-9a-f]/i.test(database)) {
     throw new Error("Invalid hosted account or database ID");
   }
-  if (!/^https:\/\/wedding-rsvp-seating-hosted\.[a-z0-9-]+\.workers\.dev$/.test(origin)) throw new Error("Use the exact hosted workers.dev origin");
+  if (!/^https:\/\/wedding-rsvp-seating-hosted\.[a-z0-9-]+\.workers\.dev$/.test(origin) && origin !== "https://rsvp.hamisrd.co.il") throw new Error("Use the exact hosted workers.dev origin or https://rsvp.hamisrd.co.il");
   if (base.name === existing.name || existing.d1_databases.some(binding => binding.database_id === database)) {
     throw new Error("Hosted configuration must not target the existing deployment");
   }
