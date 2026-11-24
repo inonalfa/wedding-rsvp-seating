@@ -441,7 +441,7 @@ function accountMenu() {
 function shell(content, active) {
   const ev = S.data.event;
   const nav = ev ? `<nav class="main-menu app-menu" aria-label="תפריט ראשי">${pages.map(([id, label]) => `<a href="#/${id}"${active === id ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>` : "";
-  return `<header class="site-bar app-bar"><a class="brand" href="${DEMO ? "/" : "#/"}">חתונה<span>.</span>בקליק</a>${nav}
+  return `<header class="site-bar app-bar"><a class="brand" href="${DEMO ? "/" : "#/"}">${DEMO ? "חתונה<span>.</span>בקליק" : "אישור הגעה פלוס"}</a>${nav}
     <div class="bar-end">${DEMO ? demoMenu() : accountMenu()}</div></header>
     <main class="app-main" id="main">${content}</main>`;
 }
@@ -662,7 +662,7 @@ function render() {
   root.innerHTML = html;
   root.querySelectorAll("[data-pct]").forEach(el => { el.style.width = el.dataset.pct + "%"; });
   if (focus) { const el = root.querySelector(`[data-filter="${focus}"]`); el?.focus(); if (caret != null && el?.setSelectionRange) el.setSelectionRange(caret, caret); }
-  document.title = (S.data.event ? S.data.event.title + " · " : "") + (DEMO ? "הדגמה" : "חתונה בקליק");
+  document.title = (S.data.event ? S.data.event.title + " · " : "") + (DEMO ? "הדגמה" : "אישור הגעה פלוס");
 }
 
 /** Demo only: a guest-eye view of the invitation, with a working RSVP stored locally. */
