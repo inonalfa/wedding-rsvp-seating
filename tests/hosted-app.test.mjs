@@ -239,7 +239,13 @@ test("by default only Google sign-in is offered and password routes are closed",
   delete env.HOSTED_PASSWORD_LOGIN;
   Object.assign(env, { GOOGLE_CLIENT_ID: "fictional", GOOGLE_CLIENT_SECRET: "fictional", HOSTED_AUTH_SECRET: Buffer.alloc(32, 1).toString("base64url") });
   for (const path of ["/auth/login", "/auth/signup"]) {
-    const html = await (await get(path)).text();
+    const response = await get(path);
+    const html = await response.text();
+    const csp = response.headers.get("content-security-policy") ?? "";
+    assert.match(csp, /script-src[^;]*https:\/\/challenges\.cloudflare\.com/);
+    assert.match(csp, /frame-src[^;]*https:\/\/challenges\.cloudflare\.com/);
+    assert.match(csp, /connect-src[^;]*https:\/\/challenges\.cloudflare\.com/);
+    assert.match(csp, /form-action 'self' https:\/\/accounts\.google\.com/);
     assert.match(html, /המשך עם Google/);
     assert.doesNotMatch(html, /type="password"/);
     assert.match(html, /href="\/privacy"/);
