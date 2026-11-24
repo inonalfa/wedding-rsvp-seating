@@ -243,20 +243,25 @@ test("by default only Google sign-in is offered and password routes are closed",
     assert.match(html, /המשך עם Google/);
     assert.doesNotMatch(html, /type="password"/);
     assert.match(html, /href="\/privacy"/);
+    assert.match(html, /href="\/terms"/);
   }
   assert.equal((await form("/auth/signup", { username: "closed.door", password: "Correct-Horse-91", confirm: "Correct-Horse-91", "cf-turnstile-response": "signup:x" })).status, 404);
   assert.equal((await form("/auth/password", { username: "closed.door", password: "Correct-Horse-91", "cf-turnstile-response": "login:x" })).status, 404);
   assert.equal(sql.prepare("SELECT count(*) AS n FROM accounts").get().n, 0);
   delete env.GOOGLE_CLIENT_ID;
   assert.equal((await get("/auth/login")).status, 503);
-  env.HOSTED_CONTACT_EMAIL = "privacy@example.test";
   for (const path of ["/privacy", "/terms"]) {
     const response = await get(path);
     assert.equal(response.status, 200);
     const text = await response.text();
-    assert.match(text, /טיוטה/);
-    assert.match(text, /mailto:privacy@example\.test/);
+    assert.match(text, /חתונה בקליק/);
+    assert.match(text, /עדכון אחרון: 24\.11\.2026/);
+    assert.match(text, /mailto:office@hamisrd\.co\.il/);
+    assert.doesNotMatch(text, /טיוטה/);
   }
+  const home = await (await get("/")).text();
+  assert.match(home, /href="\/privacy"/);
+  assert.match(home, /href="\/terms"/);
 });
 
 test("declining frees the seat, whether the owner or the guest answers", async t => {
