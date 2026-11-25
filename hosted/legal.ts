@@ -94,7 +94,7 @@ export function privacyPage() {
   <h2>יצירת קשר</h2>
   <p>לכל שאלה, בקשה או פנייה בנוגע לפרטיות, אבטחת מידע ומימוש זכויות ניתן לפנות לכתובת:</p>
   <p><a href="mailto:office@hamisrd.co.il" dir="ltr">office@hamisrd.co.il</a></p>
-  <p class="muted small"><a href="/terms">תנאי שימוש</a> · <a href="/">דף הבית</a></p>`, 200, false, false, { bodyClass: "legal" });
+  <p class="muted small"><a href="/terms">תנאי שימוש</a> · <a href="/feedback">שליחת פידבק</a> · <a href="/">דף הבית</a></p>`, 200, false, false, { bodyClass: "legal" });
 }
 
 export function termsPage() {
@@ -212,5 +212,5 @@ export function termsPage() {
   <h2>יצירת קשר</h2>
   <p>לשאלות, דיווח על תקלות, בקשות ופניות בנוגע לשירות ניתן לפנות לכתובת:</p>
   <p><a href="mailto:office@hamisrd.co.il" dir="ltr">office@hamisrd.co.il</a></p>
-  <p class="muted small"><a href="/privacy">מדיניות פרטיות</a> · <a href="/">דף הבית</a></p>`, 200, false, false, { bodyClass: "legal" });
+  <p class="muted small"><a href="/privacy">מדיניות פרטיות</a> · <a href="/feedback">שליחת פידבק</a> · <a href="/">דף הבית</a></p>`, 200, false, false, { bodyClass: "legal" });
 }

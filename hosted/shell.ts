@@ -54,5 +54,5 @@ export function landingPage(error = "") {
       <div><h3>פרטיות</h3><p>אין פרסומות ואין מעקב. הנתונים נמחקים אוטומטית 90 יום אחרי האירוע.</p></div>
     </section>
   </main>
-  <footer class="site-footer"><p>שירות חינמי, ללא פרסומות וללא התחייבות לזמינות.</p><p><a href="/privacy">פרטיות</a> · <a href="/terms">תנאי שימוש</a></p></footer>`, 200, false, false, { bare: true, bodyClass: "landing-page" });
+  <footer class="site-footer"><p>שירות חינמי, ללא פרסומות וללא התחייבות לזמינות.</p><p><a href="/privacy">פרטיות</a> · <a href="/terms">תנאי שימוש</a> · <a href="/feedback">שליחת פידבק</a></p></footer>`, 200, false, false, { bare: true, bodyClass: "landing-page" });
 }

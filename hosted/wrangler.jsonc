@@ -13,6 +13,7 @@
     { "name": "RECOVERY_LIMIT", "namespace_id": "41005", "simple": { "limit": 12, "period": 60 } },
     { "name": "CLIENT_LIMIT", "namespace_id": "41003", "simple": { "limit": 180, "period": 60 } }
   ],
+  "send_email": [{ "name": "FEEDBACK_EMAIL" }],
   "triggers": { "crons": ["7 * * * *"] },
   "d1_databases": [
     {

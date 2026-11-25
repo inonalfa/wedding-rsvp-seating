@@ -1,6 +1,7 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import type { AuthEnv } from "./auth";
 import { DetailsError, normalizePhone, parseDetails, readDetails, validTitle, type EventDetails } from "./details";
+import { FeedbackError, feedbackRateLimited, parseFeedbackInput, submitFeedback, type ExecutionCtxLike } from "./feedback";
 import { purgeTime } from "./events";
 import { json } from "./http";
 import { invitationKey, signInvitation } from "./invites";
@@ -188,7 +189,7 @@ function rsvpInput(input: Record<string, unknown>, maxGuests: number) {
   return { attendance: attendance as "yes" | "no", count, note: note || null };
 }
 
-async function route(request: Request, env: AuthEnv, owner: string, now: number, path: string) {
+async function route(request: Request, env: AuthEnv, owner: string, now: number, path: string, fetcher: typeof fetch, ctx?: ExecutionCtxLike) {
   const db = env.HOSTED_DB;
   const method = request.method;
   if (path === "/state" && method === "GET") return json(await state(env, owner, now));
@@ -196,6 +197,20 @@ async function route(request: Request, env: AuthEnv, owner: string, now: number,
   if (method !== "GET") {
     if (!env.HOSTED_ORIGIN || new URL(request.url).origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
       fail(403, "הבקשה נחסמה");
+    }
+  }
+
+  if (path === "/feedback" && method === "POST") {
+    const blocked = await feedbackRateLimited(env, "feedback:owner:" + owner);
+    if (blocked) return blocked;
+    const input = await body(request, 16 * 1024);
+    try {
+      const parsed = parseFeedbackInput(input, env.HOSTED_ORIGIN, "/app");
+      const { feedbackId } = await submitFeedback(env, { ...parsed, accountId: owner }, now, fetcher, ctx);
+      return json({ ok: true, id: feedbackId }, 201);
+    } catch (error) {
+      if (error instanceof FeedbackError) fail(error.status, error.message);
+      throw error;
     }
   }
 
@@ -385,10 +400,10 @@ async function route(request: Request, env: AuthEnv, owner: string, now: number,
 }
 
 /** Owner JSON API under /api/app. The owner ID comes from a verified session. */
-export async function appApi(request: Request, env: AuthEnv, owner: string, now = Date.now()) {
+export async function appApi(request: Request, env: AuthEnv, owner: string, now = Date.now(), fetcher: typeof fetch = fetch, ctx?: ExecutionCtxLike) {
   const path = new URL(request.url).pathname.slice("/api/app".length) || "/";
   try {
-    return await route(request, env, owner, now, path);
+    return await route(request, env, owner, now, path, fetcher, ctx);
   } catch (error) {
     if (error instanceof ApiError) return json({ error: error.message }, error.status);
     console.error("hosted api error");
