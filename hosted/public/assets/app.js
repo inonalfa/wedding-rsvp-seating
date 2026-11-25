@@ -97,6 +97,7 @@ const remote = {
   uploadPhoto(kind, blob) { return this.call("PUT", "/photos/" + kind, undefined, blob); },
   deletePhoto(kind) { return this.call("DELETE", "/photos/" + kind); },
   async staffLink() { return this.call("POST", "/staff-link", {}); },
+  sendFeedback(payload) { return this.call("POST", "/feedback", payload); },
 };
 
 const uuid = () => crypto.randomUUID();
@@ -235,6 +236,23 @@ const local = {
   },
   async deletePhoto(kind) { const data = this.need(); delete data.photos[kind]; return this.save(data); },
   async staffLink() { throw new UserError("קישור לצוות זמין אחרי יצירת חשבון."); },
+  async sendFeedback(payload) {
+    let response;
+    try {
+      response = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        cache: "no-store",
+        credentials: "same-origin",
+      });
+    } catch {
+      throw new UserError("אין חיבור לשרת. בדקו את האינטרנט ונסו שוב.");
+    }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new UserError(data.error || "שליחת הפידבק נכשלה");
+    return data;
+  },
 };
 
 const api = DEMO ? local : remote;
@@ -422,6 +440,7 @@ function demoMenu() {
       <a class="btn primary block" href="/auth/signup">יצירת חשבון ושמירת הנתונים</a>
       <a class="btn ghost block" href="/auth/login">כבר יש לי חשבון</a>
       <button class="btn ghost block" type="button" data-action="demo-sample">מילוי נתוני דוגמה</button>
+      <button class="btn ghost block" type="button" data-action="feedback">שליחת פידבק</button>
       <button class="btn ghost block danger-text" type="button" data-action="demo-reset">איפוס ההדגמה</button>
     </div></div>`;
 }
@@ -433,6 +452,7 @@ function accountMenu() {
     <div class="menu-pop" data-pop="account" hidden>
       <p class="muted small">${a.method === "password" ? "כניסה עם שם משתמש" : "מחוברים עם Google"}</p>
       ${ev ? `<a class="btn ghost block" href="/events/${esc(ev.id)}/data">ייצוא או מחיקת נתונים</a><a class="btn ghost block" href="/events/${esc(ev.id)}/reminder">תזכורת ביומן לפני מחיקה</a>` : ""}
+      <button class="btn ghost block" type="button" data-action="feedback">שליחת פידבק</button>
       <form method="post" action="/auth/logout"><button class="btn ghost block">התנתקות</button></form>
       <p class="muted small center"><a href="/privacy">פרטיות</a> · <a href="/terms">תנאי שימוש</a></p>
     </div></div>`;
@@ -443,7 +463,8 @@ function shell(content, active) {
   const nav = ev ? `<nav class="main-menu app-menu" aria-label="תפריט ראשי">${pages.map(([id, label]) => `<a href="#/${id}"${active === id ? ' aria-current="page"' : ""}>${label}</a>`).join("")}</nav>` : "";
   return `<header class="site-bar app-bar"><a class="brand" href="${DEMO ? "/" : "#/"}">${DEMO ? "חתונה<span>.</span>בקליק" : `<img src="/assets/logo.webp" alt="אישור הגעה פלוס" width="160" height="94">`}</a>${nav}
     <div class="bar-end">${DEMO ? demoMenu() : accountMenu()}</div></header>
-    <main class="app-main" id="main">${content}</main>`;
+    <main class="app-main" id="main">${content}</main>
+    <footer class="site-footer app-footer"><button type="button" class="link-btn" data-action="feedback">נתקלתם בבעיה או יש רעיון לשיפור? שליחת פידבק</button>${DEMO ? ` · <a href="/privacy">פרטיות</a> · <a href="/terms">תנאי שימוש</a>` : ""}</footer>`;
 }
 
 /* ---------------------------------------------------------------- views */
@@ -851,6 +872,30 @@ async function uploadPhoto(input) {
   }, "התמונה נשמרה");
 }
 
+async function openFeedback() {
+  root.querySelectorAll(".menu-pop").forEach(p => { p.hidden = true; });
+  root.querySelectorAll("[data-action=toggle-menu]").forEach(b => b.setAttribute("aria-expanded", "false"));
+  const username = !DEMO ? (S.data?.account?.username || "") : "";
+  const prefillEmail = username.includes("@") ? username : "";
+  const form = await dialog("שליחת פידבק", `<p class="muted small">נתקלתם בבעיה, יש רעיון לשיפור או הערה? נשמח לשמוע.</p>
+    <label>קטגוריה (לא חובה) <select name="category">
+      <option value="">כללי (לא חובה)</option>
+      <option value="bug">דיווח על תקלה</option>
+      <option value="idea">רעיון לשיפור</option>
+      <option value="other">אחר</option>
+    </select></label>
+    <label>מה תרצו לשתף? <textarea name="message" required minlength="3" maxlength="2000" rows="5" placeholder="ספרו לנו מה עבד, מה נתקע או מה הייתם רוצים להוסיף"></textarea></label>
+    <label>מייל לחזרה (לא חובה) <input name="email" type="email" dir="ltr" maxlength="120" value="${esc(prefillEmail)}" placeholder="name@example.com"></label>
+    <p class="muted small">הפידבק נשמר במערכת ונשלח לצוות. אם תזינו מייל לחזרה, הוא נשלח לצוות בלבד ואינו מפורסם בפומבי.</p>`, { submit: "שליחת פידבק" });
+  if (!form) return;
+  await run(() => api.sendFeedback({
+    category: String(form.get("category") || ""),
+    message: String(form.get("message") || ""),
+    email: String(form.get("email") || ""),
+    pageUrl: location.pathname + location.hash,
+  }), "תודה! הפידבק נשלח.");
+}
+
 async function linkFor(id) {
   const links = await ensureLinks([id]);
   return links[id];
@@ -911,6 +956,7 @@ const actions = {
   "seat-pick": el => seatPick(el.dataset.id),
   "auto-seat": () => autoSeat(),
   "print-seating": () => window.print(),
+  "feedback": () => openFeedback(),
 };
 
 root.addEventListener("click", event => {

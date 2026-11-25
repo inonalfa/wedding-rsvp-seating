@@ -10,6 +10,7 @@ import { appApi } from "./api";
 import { appShell, landingPage } from "./shell";
 import { servePhoto } from "./media";
 import { privacyPage, termsPage } from "./legal";
+import { feedbackPage, publicFeedbackApi, type ExecutionCtxLike } from "./feedback";
 import { tableSearch } from "./table-search";
 import { purgeExpired } from "./retention";
 
@@ -20,7 +21,7 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
       await purgeExpired(env.HOSTED_DB, now);
       await refreshUsage(env, now, fetcher);
     },
-    async fetch(request: Request, env: AuthEnv): Promise<Response> {
+    async fetch(request: Request, env: AuthEnv, ctx?: ExecutionCtxLike): Promise<Response> {
       const url = new URL(request.url);
       if (request.method === "GET" && url.pathname === "/health") {
         return Response.json({ status: "ok" }, { headers: { "Cache-Control": "no-store" } });
@@ -54,13 +55,25 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
       }
       if (request.method === "GET" && url.pathname === "/privacy") return privacyPage();
       if (request.method === "GET" && url.pathname === "/terms") return termsPage();
+      if (url.pathname === "/feedback") {
+        if (request.method === "GET") {
+          const blocked = await limited(env.CLIENT_LIMIT, "feedback-page:" + await clientKey());
+          if (blocked) return blocked;
+        }
+        const owner = await sessionOwner(request, env);
+        return feedbackPage(request, env, owner, clientKey, Date.now(), fetcher, ctx);
+      }
+      if (url.pathname === "/api/feedback") {
+        const owner = await sessionOwner(request, env);
+        return publicFeedbackApi(request, env, owner, clientKey, Date.now(), fetcher, ctx);
+      }
       if (url.pathname === "/demo" || url.pathname.startsWith("/demo/")) return appShell("demo");
       if (url.pathname.startsWith("/api/app/")) {
         const owner = await sessionOwner(request, env);
         if (!owner) return Response.json({ error: "נדרשת התחברות" }, { status: 401, headers: { "Cache-Control": "no-store" } });
         const blocked = await limited(env.OWNER_LIMIT, "owner:" + owner);
         if (blocked) return Response.json({ error: "יותר מדי פעולות בדקה. נסו שוב בעוד רגע." }, { status: blocked.status, headers: { "Cache-Control": "no-store", "Retry-After": "60" } });
-        return appApi(request, env, owner);
+        return appApi(request, env, owner, Date.now(), fetcher, ctx);
       }
       if (url.pathname === "/app" || url.pathname.startsWith("/app/")) {
         const owner = await sessionOwner(request, env);

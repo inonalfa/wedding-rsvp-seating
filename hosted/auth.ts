@@ -1,10 +1,11 @@
 import type { UsageEnv } from "./usage";
 import type { AbuseEnv } from "./abuse";
+import type { FeedbackEnv } from "./feedback";
 import { authPage, passwordRoute } from "./password";
 import { page } from "./http";
 import type { D1Database } from "@cloudflare/workers-types";
 
-export interface AuthEnv extends AbuseEnv, UsageEnv {
+export interface AuthEnv extends AbuseEnv, UsageEnv, FeedbackEnv {
   HOSTED_DB: D1Database;
   HOSTED_ORIGIN?: string;
   GOOGLE_CLIENT_ID?: string;

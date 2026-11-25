@@ -107,7 +107,7 @@ export function authPage(env: AuthEnv, mode: "login" | "signup", message = "", s
       ? "ההרשמה מתבצעת עם חשבון Google, ללא סיסמה נוספת. נתונים שהזנתם בהדגמה יועברו לחשבון אחרי הכניסה."
       : "הכניסה מתבצעת עם חשבון Google. אם זו הפעם הראשונה, ייווצר לכם חשבון.";
     return page(mode === "login" ? "כניסה לחשבון" : "יצירת חשבון", `<p class="lead">${intro}</p>${alert}${google}${legal}
-      <p class="muted center"><a href="/demo">לנסות קודם את ההדגמה</a></p>`, status, false, true, { bodyClass: "auth" });
+      <p class="muted center"><a href="/demo">לנסות קודם את ההדגמה</a> · <a href="/feedback">שליחת פידבק</a></p>`, status, false, true, { bodyClass: "auth" });
   }
   const body = mode === "login"
     ? `${alert}${google}<form method="post" action="/auth/password" class="stack">
@@ -115,7 +115,7 @@ export function authPage(env: AuthEnv, mode: "login" | "signup", message = "", s
       <label>סיסמה <input name="password" type="password" autocomplete="current-password" dir="ltr" required maxlength="128"></label>
       ${loginChallenge.replace('class="cf-turnstile"', 'class="cf-turnstile" data-appearance="interaction-only"')}
       <button class="btn primary">כניסה</button></form>
-      <p class="muted center">אין לכם חשבון? <a href="/auth/signup">הרשמה בחינם</a> · <a href="/demo">כניסה להדגמה</a></p>`
+      <p class="muted center">אין לכם חשבון? <a href="/auth/signup">הרשמה בחינם</a> · <a href="/demo">כניסה להדגמה</a> · <a href="/feedback">שליחת פידבק</a></p>`
     : `${alert}${google}<form method="post" action="/auth/signup" class="stack">
       <label>איך לקרוא לכם? <input name="name" autocomplete="name" maxlength="60" value="${escapeHtml(values.name ?? "")}" placeholder="דנה ויואב"></label>
       <label>שם משתמש או אימייל <input name="username" autocomplete="username" dir="ltr" required minlength="3" maxlength="64" value="${escapeHtml(values.username ?? "")}"></label>
@@ -124,7 +124,7 @@ export function authPage(env: AuthEnv, mode: "login" | "signup", message = "", s
       <p class="muted small">אין אפשרות לשחזר סיסמה בדוא"ל. שמרו אותה במנהל סיסמאות, או התחברו עם Google.</p>
       ${signupChallenge.replace('class="cf-turnstile"', 'class="cf-turnstile" data-appearance="interaction-only"')}
       <button class="btn primary">יצירת חשבון</button></form>
-      ${legal}<p class="muted center">כבר רשומים? <a href="/auth/login">כניסה</a></p>`;
+      ${legal}<p class="muted center">כבר רשומים? <a href="/auth/login">כניסה</a> · <a href="/feedback">שליחת פידבק</a></p>`;
   return page(mode === "login" ? "כניסה לחשבון" : "יצירת חשבון", `<p class="lead">${mode === "signup" ? "נתונים שהזנתם בהדגמה יועברו לחשבון החדש אחרי ההרשמה." : "ממשיכים מאיפה שעצרתם."}</p>${body}`,
     status, true, Boolean(google), { bodyClass: "auth" });
 }

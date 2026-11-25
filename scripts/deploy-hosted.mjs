@@ -62,7 +62,7 @@ async function run() {
   const vars = Object.fromEntries(["HOSTED_ORIGIN", "GOOGLE_CLIENT_ID", "TURNSTILE_SITE_KEY", "HOSTED_OPERATOR_SUB", "CF_ACCOUNT_ID"]
     .map(name => [name, required(name)]));
   // Optional: shown on /privacy and /terms. Password sign-in stays off unless HOSTED_PASSWORD_LOGIN=1 is set on purpose.
-  for (const name of ["HOSTED_CONTACT_EMAIL", "HOSTED_PASSWORD_LOGIN"]) if (process.env[name]?.trim()) vars[name] = process.env[name].trim();
+  for (const name of ["HOSTED_CONTACT_EMAIL", "HOSTED_PASSWORD_LOGIN", "FEEDBACK_EMAIL_TO", "FEEDBACK_EMAIL_FROM", "FEEDBACK_GITHUB_REPO"]) if (process.env[name]?.trim()) vars[name] = process.env[name].trim();
   const [subscriptions, remoteDb] = await Promise.all([
     api("/accounts/" + account + "/subscriptions", token),
     api("/accounts/" + account + "/d1/database/" + database, token),
