@@ -1,0 +1,306 @@
+[
+ {
+  "key": "L0",
+  "title": "Epic: Rebuild the hosted landing page (Everything Falls Into Place)",
+  "labels": [
+   "landing",
+   "epic"
+  ],
+  "depends_on": [],
+  "owns": [
+   "docs/landing/PLAN.md",
+   "docs/landing/DECISIONS.md"
+  ],
+  "model": "orchestrator",
+  "body": "## Scope\nUmbrella for the anonymous GET / landing rebuild in hosted/. The plan lives in docs/landing/PLAN.md, which is committed by this issue.\n\nChildren in dependency order:\n- L1 Owner content and copy approvals\n- L2 Landing foundation (CSP opt-in, head, build script, skeleton)\n- L3 QA harness (axe, e2e projects, visual regression, lint, budgets)\n- L4 Design system\n- L5 Hero with envelope\n- L6 Chaos-to-order story\n- L7 Shared store, RSVP demo, dashboard\n- L8 Seating demo\n- L9 Invitation themes\n- L10 Trust, limits, FAQ, founder slot, final CTA\n- L11 Two visual iteration rounds\n- L12 Optional /demo CSP and brand alignment (owner-gated)\n- L13 Final QA, real-device verification, launch readiness\n\nUser-visible PRs merge into landing/integration. Only L13 proposes the merge to main, and only with owner approval.\n\n## Out of scope\n- Any deploy, preview deploy or DNS change without owner approval.\n- Changes to /app, /demo, /auth, /invite, /find-table, /events or API routes, except L12 if approved.\n\n## Acceptance criteria\n- [ ] docs/landing/PLAN.md and docs/landing/DECISIONS.md committed\n- [ ] All child issues created with labels and owns paths\n- [ ] landing/integration branch created from main\n- [ ] All children closed, or explicitly deferred with an owner note\n\n## Evidence required in PR\n- Link to the plan\n- Child issue list with status"
+ },
+ {
+  "key": "L1",
+  "title": "Collect owner content and approve landing copy",
+  "labels": [
+   "landing",
+   "content",
+   "owner-approval"
+  ],
+  "depends_on": [
+   "L0"
+  ],
+  "owns": [
+   "hosted/landing/copy.ts",
+   "docs/landing/CLAIMS.md"
+  ],
+  "model": "orchestrator",
+  "body": "## Scope\n- Present all [OA] copy lines from PLAN sections 5 and 13 to the owner and record the decisions in docs/landing/CLAIMS.md.\n- Each sentence maps to a fact id (C1-C25) or is marked as owner-approved.\n- Collect the owner decisions on:\n  - brand naming;\n  - publishing limits;\n  - why-free wording;\n  - open source mention;\n  - CTA destination;\n  - fixes to the current overstatements (real time, no tracking, WhatsApp sending);\n  - the og image.\n- Founder story text, photo and consent are delivered privately to the orchestrator. They are not posted in this public issue.\n- Opus does a final Hebrew style pass (plural second person, warm, plain). Haiku produces the claims table.\n\n## Out of scope\n- Publishing any personal contact details, emails or account identifiers.\n- Inventing a founder biography, reviews or statistics.\n\n## Acceptance criteria\n- [ ] Every [OA] line is approved, replaced or removed, as recorded in CLAIMS.md\n- [ ] Haiku claims table shows 0 UNSUPPORTED sentences\n- [ ] Founder: either approved content plus written consent is confirmed (consent stored privately), or the section stays disabled (data.founder = null)\n- [ ] No typographic dashes or maqaf in copy.ts (landing-lint passes)\n- [ ] Brand naming decision recorded in DECISIONS.md\n\n## Evidence required in PR\n- CLAIMS.md diff\n- Haiku claims table\n- Owner approval comment link"
+ },
+ {
+  "key": "L2",
+  "title": "Add landing foundation: script CSP opt-in, head meta, asset versioning, skeleton",
+  "labels": [
+   "landing",
+   "architecture",
+   "csp"
+  ],
+  "depends_on": [
+   "L0"
+  ],
+  "owns": [
+   "hosted/http.ts",
+   "hosted/shell.ts",
+   "hosted/worker.ts",
+   "hosted/landing/page.ts",
+   "hosted/landing/head.ts",
+   "hosted/landing/version.ts",
+   "hosted/landing/data.ts",
+   "hosted/landing/icons.ts",
+   "hosted/landing/sections/header.ts",
+   "hosted/landing/sections/footer.ts",
+   "hosted/landing/styles/00-layers.css",
+   "hosted/public/assets/landing/landing.js",
+   "scripts/landing-build.mjs",
+   "tests/hosted-landing.test.mjs"
+  ],
+  "model": "sonnet",
+  "body": "## Scope\n- **CSP option.** Add PageOptions.selfScript (default false). When true, script-src gains 'self' before the Cloudflare Insights origin.\n- **Shell.** landingPage(error, origin) delegates to hosted/landing/page.ts renderLanding. worker.ts:119 passes env.HOSTED_ORIGIN. Nothing else in worker.ts changes.\n- **Head** via options.head:\n  - meta description, canonical and OG tags (no og:image until approved);\n  - font preload;\n  - invite.css, versioned landing.css, noscript nojs.css;\n  - versioned module landing.js.\n- **Build script.** scripts/landing-build.mjs concatenates the CSS partials, copies nojs.css, hashes hosted/public/assets/landing/* and writes version.ts. It uses fs and crypto only.\n- **Skeleton.**\n  - Header: logo.webp, nav aria-label=\"תפריט ראשי\" with a visible link named הדגמה to /demo, כניסה, and the primary CTA.\n  - Main with empty section shells and ids.\n  - Footer with literal href=\"/privacy\", href=\"/terms\", href=\"/feedback\".\n  - The signin alert is preserved.\n  - The interim copy already removes the overstatements.\n- **Boot.** landing.js sets body data-js and data-motion and provides the island loader (dynamic import that inherits the ?v query).\n- **Record** the observed /assets cache headers from the fixture in the PR.\n\n## Out of scope\n- Visual design (L4) and section content (L5-L10).\n- Any change to appShell or default page() output.\n\n## Acceptance criteria\n- [ ] GET / CSP equals exactly: default-src 'none'; style-src 'self'; img-src 'self' data:; font-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; script-src 'self' https://static.cloudflareinsights.com; connect-src 'self' https://cloudflareinsights.com\n- [ ] /privacy, /terms and /auth/login CSPs are unchanged (new tests)\n- [ ] Existing tests pass unchanged: hosted-app 103, 107, 244-249 and 270-273; hosted-feedback 155-158; hosted.spec.ts 38-40 and 108-109\n- [ ] Signed-in GET / still returns 303 to /app; ?signin=failed renders role=alert\n- [ ] Meta description is 70-160 characters; exactly one h1\n- [ ] Version freshness test fails when an asset changes without rerunning the build script\n- [ ] No style=, <style> or inline executable script in landing HTML (test)\n- [ ] npm run typecheck, npm run lint (0 warnings), hosted unit tests and npm run test:e2e green\n\n## Evidence required in PR\n- Before and after CSP header strings\n- Test output tails\n- Screenshots at 390x844 and 1440x900\n- Observed asset cache headers"
+ },
+ {
+  "key": "L3",
+  "title": "Build landing QA harness: e2e projects, axe, visual regression, lint and budgets",
+  "labels": [
+   "landing",
+   "testing",
+   "qa"
+  ],
+  "depends_on": [
+   "L2"
+  ],
+  "owns": [
+   "playwright.config.ts",
+   "package.json",
+   "package-lock.json",
+   "e2e/landing.spec.ts",
+   "e2e/landing-a11y.spec.ts",
+   "e2e/landing-visual.spec.ts",
+   "e2e/landing-perf.spec.ts",
+   "scripts/landing-lint.mjs",
+   "scripts/landing-budget.mjs",
+   "docs/landing/budget.json"
+  ],
+  "model": "sonnet",
+  "body": "## Scope\n- **Playwright projects.** Add landing-desktop (1440x900) and landing-mobile (390x844, isMobile, hasTouch). The existing project ignores the landing specs, so current e2e is unchanged.\n- **Dev dependency.** Add @axe-core/playwright as a devDependency in a small, dedicated package.json commit, with a DECISIONS.md entry (purpose, MPL-2.0 license, size, alternative considered).\n- **Specs:**\n  - smoke: sections present, console-error gate, storage-empty assertion, request allowlist;\n  - a11y: zero violations for tags wcag2a, wcag2aa, wcag21aa, wcag22aa;\n  - visual: toHaveScreenshot with reducedMotion reduce, animations disabled, fonts ready, maxDiffPixelRatio 0.01;\n  - perf: LCP element tag, CLS sum over a full scroll, resource transferSize sum, and an INP proxy via a PerformanceObserver on event entries under 4x CPU throttle.\n- **Lint.** scripts/landing-lint.mjs flags typographic dashes, maqaf, forbidden claims (PLAN section 14), and non-zero letter-spacing in landing CSS. It is also run from tests/hosted-landing.test.mjs.\n- **Budgets.** scripts/landing-budget.mjs reads Lighthouse JSON reports and prints a median table versus docs/landing/budget.json.\n\n## Out of scope\n- Section implementation.\n- Adding lighthouse as a repo dependency (it runs via npx pinned to v13 by the orchestrator).\n\n## Acceptance criteria\n- [ ] npm run test:e2e runs the existing suite plus both landing projects green on the skeleton\n- [ ] axe spec reports 0 violations on the skeleton at both viewports\n- [ ] Lint script exits non-zero on a seeded fixture containing an em dash or the phrase ללא הגבלה, and zero on clean input (unit test)\n- [ ] Console gate fails a test when a console error is injected (demonstrated in the PR, then removed)\n- [ ] Budget script outputs a markdown table with median LCP, CLS, TBT, Perf, A11y, BP, SEO and transfer\n- [ ] Visual baselines are generated on Linux Chromium and committed\n\n## Evidence required in PR\n- Test output tails for npm test and npm run test:e2e\n- Sample budget table\n- DECISIONS.md entry for the new dev dependency"
+ },
+ {
+  "key": "L4",
+  "title": "Implement landing design system: tokens, type, grid, materials, icons",
+  "labels": [
+   "landing",
+   "design",
+   "a11y"
+  ],
+  "depends_on": [
+   "L2"
+  ],
+  "owns": [
+   "hosted/landing/styles/01-tokens.css",
+   "hosted/landing/styles/02-base.css",
+   "hosted/landing/styles/03-type.css",
+   "hosted/landing/styles/04-materials.css",
+   "hosted/landing/styles/10-header.css",
+   "hosted/landing/styles/20-footer.css",
+   "hosted/landing/styles/90-motion.css",
+   "hosted/landing/styles/99-nojs.css",
+   "hosted/public/assets/landing/grain.webp",
+   "public-fonts-subset-if-approved: hosted/public/fonts/landing/"
+  ],
+  "model": "opus",
+  "body": "## Scope\n- **Tokens.** Color, spacing, motion and type tokens per PLAN section 4, scoped under body.landing-page with the lp- prefix.\n- **Typography.**\n  - Metric-adjusted fallback faces; font-synthesis none.\n  - Measure the existing woff files. If they total more than 100 KB, produce Hebrew-plus-digits woff2 subsets with OFL license files and log the decision.\n- **Materials.** Grain tile (3 KB or less), deckle mask, place-card and envelope material classes, tilt classes lp-tilt-1..6.\n- **Icons.** Inline SVG sprite of about 12 icons in hosted/landing/icons.ts (coordinate with L2, which owns the file).\n- **Header and footer styling.** Mobile nav disclosure with details/summary. The הדגמה link stays visible.\n- **Focus styles.** Forest ring on light grounds, champagne ring on forest grounds.\n- **No edits to app.css or invite.css.**\n\n## Out of scope\n- Section-specific layouts (L5-L10).\n\n## Acceptance criteria\n- [ ] Every text token pairing in PLAN 4.1 passes AA; the gold #b8945a token is never used as a text color (lint grep)\n- [ ] Hebrew letter-spacing is 0 everywhere in landing CSS (lint)\n- [ ] Header and footer pass axe with 0 violations at 390 and 1440\n- [ ] All interactive targets in header and footer are 44x44 px or larger (e2e bounding box check)\n- [ ] Font swap CLS is 0.01 or less on the skeleton (perf spec)\n- [ ] landing.css is 16 KB gzip or less at the end of the epic (budget tracked here)\n- [ ] Font decision and byte counts recorded in DECISIONS.md\n\n## Evidence required in PR\n- Token contrast table with measured ratios\n- Screenshots of a type specimen at both viewports\n- Font byte measurements"
+ },
+ {
+  "key": "L5",
+  "title": "Build hero with accessible opening-envelope interaction",
+  "labels": [
+   "landing",
+   "interaction",
+   "hero"
+  ],
+  "depends_on": [
+   "L3",
+   "L4"
+  ],
+  "owns": [
+   "hosted/landing/sections/hero.ts",
+   "hosted/landing/styles/11-hero.css"
+  ],
+  "model": "opus",
+  "body": "## Scope\n- **Hero content.** Eyebrow, h1, lead, both CTAs and micro copy from copy.ts.\n- **Envelope.** Built from SVG and CSS: flap with clip-path and rotateX, wax seal monogram, deckle-edged invitation card using real invite.css garden classes with fictional data.\n- **State machine** per PLAN 6.1:\n  - button with aria-expanded and aria-controls;\n  - card inert and aria-hidden while closed;\n  - optional scroll-linked partial flap lift of 25% or less, behind @supports and the motion flag.\n- **Boot logic** goes in landing.js (coordinate with L2; hero handler at 1.5 KB gzip or less).\n- **No-JS:** envelope open via nojs.css. **Reduced motion:** instant state change.\n\n## Out of scope\n- Story, demos, and any image assets for the envelope.\n\n## Acceptance criteria\n- [ ] LCP element is the h1 in Lighthouse and in the perf spec, mobile and desktop\n- [ ] Mobile 390x844 fold shows the h1, primary CTA and the envelope top edge\n- [ ] Envelope opens and closes via click, tap, Enter and Space; aria-expanded toggles; focus stays on the button (e2e)\n- [ ] Only transform and opacity animate; CLS 0.02 or less during open/close (perf spec)\n- [ ] Reduced motion produces no running animations; no-JS shows the card open with no button\n- [ ] axe 0 violations in the closed and open states at both viewports\n- [ ] Mobile Lighthouse median LCP 1.5 s or less on the fixture\n\n## Evidence required in PR\n- Screenshots of closed, open, reduced-motion and no-JS states at 390 and 1440\n- Playwright video of mouse, keyboard and touch opening\n- Lighthouse 3-run table"
+ },
+ {
+  "key": "L6",
+  "title": "Build chaos-to-order scroll story without scroll hijacking",
+  "labels": [
+   "landing",
+   "interaction",
+   "motion"
+  ],
+  "depends_on": [
+   "L3",
+   "L4"
+  ],
+  "owns": [
+   "hosted/landing/sections/story.ts",
+   "hosted/landing/styles/12-story.css",
+   "hosted/public/assets/landing/story.js"
+  ],
+  "model": "opus",
+  "body": "## Scope\n- **Four beats** (event details, guest list, sending from your phone, answers and seating) as article blocks, each with an h3, copy from copy.ts and a settled product fragment.\n- **Scraps** (sticky note, torn list, message pile, napkin sketch) as decorative aria-hidden SVG/CSS using classes lp-tilt-1..6. Offsets live in CSS custom properties set via classes, never inline style.\n- **Primary motion path:** pure CSS animation-timeline view() with animation-range entry 10% cover 45%, under @supports and prefers-reduced-motion: no-preference and body[data-motion=on].\n- **Fallback path:** story.js (1.5 KB gzip or less), loaded only when animation-timeline is unsupported and motion is allowed. One IntersectionObserver, threshold 0.35, toggles .is-settled with a 900ms settle transition, then unobserves (settles once, never re-scatters).\n- **Layout:** 390 stacks stage (fixed 4:3 aspect-ratio) above text; 1440 uses a sticky copy rail (position: sticky only) plus an 8-column stage.\n- **Reduced motion and no-JS:** settled state, scraps shown as small static before thumbnails.\n\n## Out of scope\n- Pinning, wheel/touch listeners, scroll-snap on the page, parallax.\n- Real demos (L7-L9).\n\n## Acceptance criteria\n- [ ] No scroll hijacking: no wheel/touch/scroll listeners in story.js and no scroll-snap (unit grep test)\n- [ ] Only transform and opacity animate; CLS 0.02 or less across a full scroll (perf spec)\n- [ ] Fallback verified by forcing @supports false in e2e: scraps settle once\n- [ ] Reduced motion: document.getAnimations().length is 0 after load; no-JS shows settled fragments\n- [ ] Copy matches CLAIMS.md facts C11-C16 (landing-lint clean)\n- [ ] axe 0 violations at both viewports; story.js is 1.5 KB gzip or less\n- [ ] Each beat is an article with an h3; scraps are aria-hidden\n\n## Evidence required in PR\n- Screenshots of scattered, settling and settled at 390 and 1440\n- Playwright video of a slow scroll in Chromium plus the forced fallback\n- Reduced-motion and no-JS screenshots\n- Lighthouse 3-run table"
+ },
+ {
+  "key": "L7",
+  "title": "Implement shared demo store, RSVP demo and dashboard section",
+  "labels": [
+   "landing",
+   "interaction",
+   "state"
+  ],
+  "depends_on": [
+   "L3",
+   "L4"
+  ],
+  "owns": [
+   "hosted/landing/data.ts",
+   "hosted/landing/sections/rsvp-demo.ts",
+   "hosted/landing/sections/dashboard.ts",
+   "hosted/landing/styles/13-rsvp.css",
+   "hosted/landing/styles/16-dashboard.css",
+   "hosted/public/assets/landing/store.js",
+   "hosted/public/assets/landing/rsvp.js",
+   "hosted/public/assets/landing/dashboard.js",
+   "tests/landing-store.test.mjs"
+  ],
+  "model": "opus",
+  "body": "## Scope\n- **Dataset.** Finalize the frozen fictional dataset (PLAN 6.0) with the visible tag \"נתונים בדויים\". Serialize it into a script type=application/json block id=lp-data (must not contain a closing script sequence).\n- **store.js.** Pure reducer and createStore per PLAN 6.0.1: actions rsvp, select, seat, unseat, autoSeat, setTheme, setFilter; selectors counts, used, free. No DOM access, no storage, microtask-batched subscribe. All islands import the same versioned URL.\n- **RSVP demo (6.3).** Form action=/demo method=get with no name attributes on controls; count clamped 1..3; polite live region #lp-rsvp-status; counter pulse; feed of recent answers.\n- **Dashboard (6.6).** Stat counters with tabular-nums and min-inline-size 3ch; aria-pressed filters with a polite result count; guest list; notes via textContent; event-day card; demo-only note instead of opening wa.me.\n- **Cross-effects.** Declining removes the seat and announces it; counters update everywhere.\n- **Budgets.** store.js 2 KB, rsvp.js 2.5 KB, dashboard.js 2 KB (gzip).\n\n## Out of scope\n- Seating UI (L8), themes (L9).\n- Any network call, Web Storage, or import of app.js.\n\n## Acceptance criteria\n- [ ] Unit tests: pending and declined guests not seatable; capacity refusal returns free and needed; decline unseats; a count change that no longer fits unseats; counts selectors correct; weekday of 2027-06-17 is Thursday; no name overlap with /demo fixtures\n- [ ] E2E: answering yes for 2 guests changes the coming counter 9 to 11; declining removes the seat and announces it\n- [ ] Storage length is 0 and no non-asset requests after load (e2e)\n- [ ] Landing JS contains no localStorage, sessionStorage, fetch(, XMLHttpRequest, sendBeacon, app.js or wa.me (unit grep)\n- [ ] No-JS submit lands on /demo with no query string\n- [ ] axe 0 violations including the answered states; island sizes within budget\n\n## Evidence required in PR\n- Test output tails\n- Screenshots of answered yes and no at 390 and 1440\n- Playwright video of keyboard-only completion\n- Bundle size table"
+ },
+ {
+  "key": "L8",
+  "title": "Build accessible seating demo with capacity rules and desktop drag",
+  "labels": [
+   "landing",
+   "interaction",
+   "a11y"
+  ],
+  "depends_on": [
+   "L7"
+  ],
+  "owns": [
+   "hosted/landing/sections/seating.ts",
+   "hosted/landing/styles/14-seating.css",
+   "hosted/public/assets/landing/seating.js"
+  ],
+  "model": "opus",
+  "body": "## Scope\n- **Markup and state machine** per PLAN 6.4. Unseated guests are button chips with aria-pressed. Tables are place-card buttons with accessible names that include used/capacity and, while picking, the pending guest. Pending and declined guests are focusable chips with aria-disabled and an explanation.\n- **Capacity feedback.** Serif used/cap numerals plus a bar; a full state with text; on refusal a bad-color outline, an icon and the inline shortage text, shown for 4s and logged to the live region. Color is never the only signal.\n- **Live region.** #lp-seat-status, aria-live=polite, aria-atomic=true, reserving two lines of height.\n- **Esc and cancel.** Esc, a second activation of the same chip, or a ביטול button cancels picking.\n- **Auto-seat.** The button seats fitting coming guests by group and announces a summary, including the count that did not fit.\n- **Desktop drag.** Only for pointerType mouse or pen; pointer events with setPointerCapture; ghost moved by transform in rAF; table rects cached and recomputed on resize. Touch always uses tap-to-assign.\n- **No-JS:** half-seated static state plus a link to /demo.\n- **Budget:** seating.js 5 KB gzip or less.\n\n## Out of scope\n- Persisting seating, real print or PDF.\n\n## Acceptance criteria\n- [ ] E2E: tap-to-assign succeeds; moving the large fictional family to the 3-seat table is refused and announces the shortage; a pending guest is refused with an explanation; Esc cancels picking\n- [ ] Mouse drag seats a guest on desktop; page scroll on touch is never blocked\n- [ ] Keyboard-only run: Tab, Enter to select, Tab, Enter to seat; focus is managed and never lost\n- [ ] axe 0 violations in idle, picking, refused and full states at both viewports\n- [ ] Pointer handlers on a 4x throttled CPU stay at 16 ms or less (perf spec); INP proxy 150 ms or less\n- [ ] Seating rules match PLAN C15 exactly (only confirmed guests, whole-party fit, decline removes the seat)\n\n## Evidence required in PR\n- Video of mouse drag, keyboard run and touch tap-to-assign\n- Screenshots of the refusal state at 390 and 1440\n- Screen-reader announcement transcript from the live region log"
+ },
+ {
+  "key": "L9",
+  "title": "Build invitation theme preview using real invite.css classes",
+  "labels": [
+   "landing",
+   "interaction",
+   "design"
+  ],
+  "depends_on": [
+   "L7"
+  ],
+  "owns": [
+   "hosted/landing/sections/invitation.ts",
+   "hosted/landing/styles/15-invitation.css",
+   "hosted/public/assets/landing/themes.js"
+  ],
+  "model": "sonnet",
+  "body": "## Scope\n- **Preview markup** per PLAN 3.7. Landing-owned markup on the real .inv theme-* classes, with no invitationMarkup call, no nested main/header/footer, no second h1, no id=rsvp, no live form, and no external venue links.\n- **Theme control.** A fieldset with legend \"ערכת עיצוב\" and three radio pills (garden, night, blush) with native arrow-key behavior in RTL.\n- **On change.** Swap the theme-* class, update a visually hidden caption, and crossfade 280ms with two stacked previews (opacity only). Reduced motion swaps instantly.\n- **Omissions.** Leave out .inv-eyebrow and .inv-legal (product contrast issues); log them in DECISIONS.md as product follow-ups, not fixed here.\n- **Sizing.** Landing-scoped sizing overrides only (aspect-ratio frame); never override colors or fonts.\n- **No-JS:** triptych of all three previews with snap scrolling on mobile.\n- **Budget:** themes.js 1 KB gzip or less.\n\n## Out of scope\n- Editing invite.css or invitation-view.js.\n- Persisting the theme choice.\n\n## Acceptance criteria\n- [ ] Unit test: every inv-* class used on the landing exists in invite.css\n- [ ] Unit test: theme ids equal the validated set in invitation-view.js\n- [ ] E2E: switching each radio changes the theme class and the caption; arrow keys move between themes\n- [ ] Landing markup has exactly one h1 and no duplicate ids\n- [ ] axe 0 violations for each theme at both viewports\n- [ ] Copy matches facts C18-C20; the legend and option names equal the product (גן ירוק, לילה כחול, ורוד עדין)\n- [ ] Visual snapshots committed for each theme at both viewports\n\n## Evidence required in PR\n- Screenshots of all three themes at 390 and 1440\n- No-JS triptych screenshot\n- DECISIONS.md diff for the logged product follow-ups"
+ },
+ {
+  "key": "L10",
+  "title": "Build trust ledger, limits, FAQ, optional founder slot and final CTA",
+  "labels": [
+   "landing",
+   "content",
+   "a11y"
+  ],
+  "depends_on": [
+   "L4",
+   "L1"
+  ],
+  "owns": [
+   "hosted/landing/sections/founder.ts",
+   "hosted/landing/sections/trust.ts",
+   "hosted/landing/sections/final-cta.ts",
+   "hosted/landing/styles/17-founder.css",
+   "hosted/landing/styles/18-trust.css",
+   "hosted/landing/styles/19-final.css",
+   "hosted/public/assets/landing/founder.webp"
+  ],
+  "model": "sonnet",
+  "body": "## Scope\n- **Trust ledger (PLAN S8).** Six rows (free and open source, no ads or marketing tracking, 90-day deletion, limits, no availability guarantee, secured links) using only owner-approved wording from CLAIMS.md and facts C1-C10.\n- **FAQ.** Native details/summary with six questions (free, automatic sending, Excel import, guests registering, demo data on signup, sign-in). Summary elements are 44px or taller.\n- **Founder slot.** Server-render the section only when data.founder is non-null; default null means omitted, including from the nav. The photo is 640w webp at 60 KB or less with width and height, lazy, and alt text from the owner. Add the asset only after L1 consent is confirmed.\n- **Final CTA.** Forest section with a still closed sealed-envelope SVG and both CTAs, plus the footer sentence kept verbatim.\n- **CTA labels.** Exactly two sitewide labels; no other CTA verbs.\n\n## Out of scope\n- Inventing founder content, testimonials, statistics or user counts.\n- Publishing any personal details.\n\n## Acceptance criteria\n- [ ] Haiku claims table shows 0 UNSUPPORTED sentences; landing-lint clean\n- [ ] Unit tests: CTA label uniqueness; founder absent when null; no section-id or nav leakage\n- [ ] Text contrast on forest and champagne grounds passes AA (axe)\n- [ ] axe 0 violations including FAQ expanded states, at both viewports\n- [ ] Footer keeps literal href=/privacy, /terms and /feedback (coupled tests green)\n- [ ] Limits copy states the approved numbers and the possible pause on free capacity without promising availability\n\n## Evidence required in PR\n- Screenshots of the trust ledger, FAQ expanded and final CTA at 390 and 1440\n- Haiku claims table\n- Confirmation reference that founder consent was received privately, or that the section remains disabled"
+ },
+ {
+  "key": "L11",
+  "title": "Run two visual iteration rounds with Opus vision critique",
+  "labels": [
+   "landing",
+   "design",
+   "review"
+  ],
+  "depends_on": [
+   "L5",
+   "L6",
+   "L7",
+   "L8",
+   "L9",
+   "L10"
+  ],
+  "owns": [
+   "docs/landing/iterations/round-1.md",
+   "docs/landing/iterations/round-2.md",
+   "hosted/landing/styles/"
+  ],
+  "model": "opus",
+  "body": "## Scope\n- **Round 1.** The orchestrator assembles all sections on landing/integration and captures full-page and per-section screenshots at 390x844 and 1440x900.\n- **Opus vision critique.** Score against the rubric in round-1.md: hierarchy, editorial typography, RTL rhythm, palette discipline, material credibility, product authenticity, CTA clarity, mobile fold, motion meaning, accessibility smells. Output a ranked defect list with crops.\n- **Fixes.** Opus fixes creative defects and Sonnet fixes routine ones. CSS-only unless a defect needs markup, in which case it is flagged in the PR.\n- **Round 2.** Repeat with before and after pairs. Any remaining defect is fixed or recorded as owner-accepted.\n- **Owner checkpoint.** After Round 1, request approval of the visual direction.\n- **Baselines.** Regenerate visual regression baselines only after Round 2.\n\n## Out of scope\n- New sections, copy changes, new dependencies.\n\n## Acceptance criteria\n- [ ] round-1.md and round-2.md committed with rubric scores, defect lists and before/after crops\n- [ ] All Round 1 high-severity defects are closed in Round 2\n- [ ] Round 2 rubric score is at least one point higher on every dimension scored below 4 of 5 in Round 1\n- [ ] Owner approval comment on the visual direction after Round 1\n- [ ] Lint, typecheck, tests, axe and perf budgets remain green after the fixes\n- [ ] Landing CSS stays at 16 KB gzip or less\n\n## Evidence required in PR\n- Full-page screenshots before and after each round at both viewports\n- The critique transcripts' summary tables\n- Updated Lighthouse 3-run table"
+ },
+ {
+  "key": "L12",
+  "title": "Optional: fix /demo CSP console error and align demo brand (owner-gated)",
+  "labels": [
+   "landing",
+   "csp",
+   "owner-approval"
+  ],
+  "depends_on": [
+   "L1"
+  ],
+  "owns": [
+   "hosted/shell.ts",
+   "tests/hosted-app.test.mjs"
+  ],
+  "model": "sonnet",
+  "body": "## Scope\n- **Gate.** Start only after the owner decides PLAN section 9 option (a) or (b), and the brand naming question.\n- **Option (a).** Allow the Cloudflare Insights script origin in script-src and connect-src of appShell only, and keep the existing test at hosted-app.test.mjs:107 matching script-src 'self'.\n- **Option (b).** No code change; the owner disables RUM auto-injection for /demo and /app in the Cloudflare dashboard. This issue then only records the decision in DECISIONS.md and verifies a clean console.\n- **Brand alignment.** If the owner approves a single brand name, update only the visible demo brand text in the smallest possible diff.\n- **Isolation.** The landing page and the other routes' CSPs stay untouched.\n\n## Out of scope\n- Any change to the landing page or to default page() output.\n- Analytics changes beyond the stated option.\n\n## Acceptance criteria\n- [ ] Owner decision recorded in DECISIONS.md before any code change\n- [ ] /demo loads with zero CSP console errors in Playwright (new e2e assertion)\n- [ ] appShell CSP diff limited to the approved origins; all other route CSPs byte-identical (unit snapshots)\n- [ ] All existing tests green: hosted-app 107, 244-249, hosted.spec.ts 38-40\n- [ ] Brand text change, if approved, touches no more than the agreed strings\n- [ ] npm run typecheck, lint and tests green\n\n## Evidence required in PR\n- Before and after CSP header strings\n- Console log screenshot or text of /demo before and after\n- Owner approval comment link"
+ },
+ {
+  "key": "L13",
+  "title": "Final QA, real-device verification and launch readiness",
+  "labels": [
+   "landing",
+   "qa",
+   "release",
+   "owner-approval"
+  ],
+  "depends_on": [
+   "L11",
+   "L1"
+  ],
+  "owns": [
+   "docs/landing/LAUNCH.md",
+   "docs/landing/budget.json"
+  ],
+  "model": "opus",
+  "body": "## Scope\n- **Full gate run** on landing/integration: npm run typecheck, npm run lint (0 warnings), npm test, npm run test:e2e, axe in every state, visual regression, landing-lint.\n- **Lighthouse** 3-run median, mobile and desktop, via npx lighthouse@13 on the fixture, checked by scripts/landing-budget.mjs against budget.json (PLAN section 8).\n- **Real-device sign-off.** Owner tests on iPhone Safari and Android Chrome from a checklist (envelope, RSVP, seating tap, themes, filters, FAQ, both CTAs) and sends screen recordings.\n- **Launch checklist (LAUNCH.md):**\n  - confirm Google or password signup works in production (no 503);\n  - confirm Turnstile is configured so the RSVP POST does not return 403;\n  - add og.jpg only if approved;\n  - confirm cache headers;\n  - owner approves any preview deploy for field-like measurements.\n- **Final claims audit.** Haiku checks the full page text against PLAN section 14 and the forbidden list.\n- **Proposal.** A PR from landing/integration to main, merged only with owner approval. No deploy is performed here.\n\n## Out of scope\n- Production deploy, DNS changes, secret changes.\n\n## Acceptance criteria\n- [ ] Mobile Lighthouse medians: Perf 95 or more, A11y 100, BP 100, SEO 100, LCP 1.5 s or less, CLS 0.02 or less, TBT 50 ms or less\n- [ ] Transfer 190 KB or less initial and 290 KB or less after a full scroll; DOM 1400 nodes or fewer; 11 requests or fewer at load\n- [ ] INP proxy 150 ms or less on 4x CPU throttle\n- [ ] 0 axe violations and 0 console errors or warnings across all landing specs\n- [ ] All pre-existing tests unchanged and green\n- [ ] Haiku final claims table: 0 UNSUPPORTED sentences\n- [ ] Owner real-device sign-off recorded and LAUNCH.md checklist complete\n\n## Evidence required in PR\n- Lighthouse median tables, mobile and desktop\n- Test output tails for all gates\n- axe summary and visual regression report\n- Owner device recordings reference and checklist status"
+ }
+]

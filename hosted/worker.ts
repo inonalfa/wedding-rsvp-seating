@@ -128,7 +128,7 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
           return blocked ?? ownerPage(request, env, owner);
         }
         if (url.pathname !== "/" || request.method !== "GET") return page("נדרשת התחברות", '<a href="/auth/login">כניסה</a>', 401);
-        return landingPage(url.searchParams.get("signin") === "failed" ? "ההתחברות לא הצליחה. נסו שוב." : "");
+        return landingPage(url.searchParams.get("signin") === "failed" ? "ההתחברות לא הצליחה. נסו שוב." : "", env.HOSTED_ORIGIN ?? "");
       }
       return new Response("Not found", { status: 404 });
     },
