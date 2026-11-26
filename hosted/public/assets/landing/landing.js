@@ -70,19 +70,23 @@ if (rowsEl && more) {
   more.addEventListener("click", () => setRows(more.getAttribute("aria-expanded") !== "true"));
 }
 
-// Mobile sticky CTA: visible after the hero, hidden while the final band or footer is on screen.
+// Mobile sticky CTA: visible after the hero; hidden while the final band or footer is on screen,
+// and while a demo card occupies the bottom band of the viewport (so it never covers live controls).
 const sticky = document.querySelector("[data-sticky]");
 const heroEl = document.querySelector(".lp-hero");
 if (sticky && heroEl && "IntersectionObserver" in window) {
   const seen = new Set();
-  const io = new IntersectionObserver(entries => {
-    for (const e of entries) { if (e.isIntersecting) seen.add(e.target); else seen.delete(e.target); }
+  const update = () => {
     const on = !seen.size;
     sticky.classList.toggle("is-on", on);
     sticky.toggleAttribute("inert", !on);
     body.classList.toggle("lp-has-sticky", on);
-  });
+  };
+  const track = e => { if (e.isIntersecting) seen.add(e.target); else seen.delete(e.target); };
+  const io = new IntersectionObserver(es => { es.forEach(track); update(); });
   for (const el of [heroEl, document.querySelector(".lp-final"), document.querySelector(".lp-footer")]) if (el) io.observe(el);
+  const band = new IntersectionObserver(es => { es.forEach(track); update(); }, { rootMargin: "-78% 0px 0px 0px" });
+  document.querySelectorAll("[data-demo-card]").forEach(el => band.observe(el));
 }
 
 // Demos: load lazily when the RSVP section approaches the viewport (or immediately without IO).

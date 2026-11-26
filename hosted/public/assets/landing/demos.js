@@ -31,7 +31,7 @@ export function start(main) {
   function renderSeating(state) {
     const picking = selected ? store.guest(selected) : null;
     keepFocus(() => {
-      pool.innerHTML = state.guests.filter(g => g.rsvp !== "yes" || !g.table).map(g => chip(g, selected)).join("");
+      pool.innerHTML = state.guests.filter(g => g.rsvp !== "yes" || !g.table).sort((a, b) => (a.rsvp !== "yes") - (b.rsvp !== "yes")).map(g => chip(g, selected)).join("");
       tablesEl.innerHTML = state.tables.map(t => tableCard(t, state.guests, store.used, picking)).join("");
     });
   }

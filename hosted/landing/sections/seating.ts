@@ -27,7 +27,8 @@ export function tableCard(t: DemoTable, guests: readonly DemoGuest[]) {
 }
 
 export function seating() {
-  const waiting = GUESTS.filter(g => g.rsvp !== "yes" || !g.table);
+  // Assignable chips first, then the dashed ones that cannot be seated (same order as demos.js).
+  const waiting = GUESTS.filter(g => g.rsvp !== "yes" || !g.table).sort((a, b) => Number(a.rsvp !== "yes") - Number(b.rsvp !== "yes"));
   const facts = SEATING.facts.map(f => `<li>${esc(f)}</li>`).join("");
   return `<section class="lp-section lp-seating" id="seating" aria-labelledby="seating-title">
   <div class="lp-wrap">
@@ -35,16 +36,16 @@ export function seating() {
       ${sectionHead("seating", "03", SEATING.eyebrow, SEATING.h2, SEATING.lead)}
       <ul class="lp-ticks lp-ticks-row">${facts}</ul>
     </div>
-    <div class="lp-board lp-paper" data-seating>
+    <div class="lp-board lp-paper" data-seating data-demo-card>
       <div class="lp-demo-bar">${fictional}<button type="button" class="lp-link-btn" data-auto>שיבוץ אוטומטי לפי קבוצה</button><button type="button" class="lp-link-btn" data-reset>איפוס</button></div>
       <div class="lp-board-grid">
         <div class="lp-pool-wrap">
           <h3 class="lp-h3">ממתינים לשיבוץ</h3>
           <ul class="lp-pool" data-pool>${waiting.map(chip).join("")}</ul>
         </div>
+        <p class="lp-status lp-seat-status" id="lp-seat-status" role="status" aria-live="polite" aria-atomic="true">בחרו הזמנה מהרשימה ואז שולחן.</p>
         <ul class="lp-tables" data-tables>${TABLES.map(t => tableCard(t, GUESTS)).join("")}</ul>
       </div>
-      <p class="lp-status lp-seat-status" id="lp-seat-status" role="status" aria-live="polite" aria-atomic="true">בחרו הזמנה מהרשימה ואז שולחן.</p>
     </div>
   </div>
 </section>`;

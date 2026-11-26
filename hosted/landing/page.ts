@@ -50,6 +50,7 @@ export function landingMarkup(error: string) {
 ${header()}
 <main id="lp-main" class="lp-main" data-demo="${esc(demoState())}">
 ${hero(alert)}
+<div class="lp-chapters">
 ${story()}
 ${rsvpDemo()}
 ${seating()}
@@ -57,9 +58,10 @@ ${themes()}
 ${dashboard()}
 <div class="lp-wrap lp-after-demos"><p class="lp-small lp-after-note">${esc(HERO.note)}</p>${ctaRow("lp-cta-center lp-cta-stack")}</div>
 ${trust()}
+</div>
 ${finalCta()}
 </main>
-<div class="lp-sticky" data-sticky inert>${cta("primary")}</div>
+<aside class="lp-sticky" aria-label="פעולה מהירה" data-sticky inert>${cta("primary")}</aside>
 ${footer()}`;
 }
 

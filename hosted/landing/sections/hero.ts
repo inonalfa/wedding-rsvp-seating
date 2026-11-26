@@ -45,7 +45,6 @@ export function hero(alert: string) {
   <div class="lp-wrap lp-hero-grid">
     <div class="lp-hero-copy">
       ${alert}
-      <p class="lp-eyebrow">${esc(HERO.eyebrow)}</p>
       <h1 id="lp-h1" class="lp-h1">${esc(HERO.h1a)} <em>${esc(HERO.h1b)}</em></h1>
       <p class="lp-lead lp-hero-lead">${esc(HERO.lead)}</p>
       ${ctaRow()}

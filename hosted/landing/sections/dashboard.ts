@@ -26,28 +26,34 @@ export function recent(g: DemoGuest) {
 
 export function dashboard() {
   const c = counts(GUESTS) as Record<string, number>;
-  const stats = DASH.stats.map(s => `<li class="lp-stat lp-stat-${s.key}"><span class="lp-stat-n" data-stat="${s.key}">${c[s.key]}</span><span class="lp-stat-l">${esc(s.label)}</span></li>`).join("");
+  const stat = (key: string) => {
+    const s = DASH.stats.find(x => x.key === key)!;
+    return `<li class="lp-stat lp-stat-${s.key}"><span class="lp-stat-n" data-stat="${s.key}">${c[s.key]}</span><span class="lp-stat-l">${esc(s.label)}</span></li>`;
+  };
+  // Grouped by unit: invitations (households) vs guests (people), so 19 next to 12 is not misread.
+  const group = (cap: string, keys: string[]) => `<div class="lp-stat-group lp-stat-group-${keys.length}"><p class="lp-stat-cap" aria-hidden="true">${cap}</p><ul class="lp-stats" aria-label="${cap}">${keys.map(stat).join("")}</ul></div>`;
+  const stats = group("הזמנות", ["invited", "no", "pending"]) + group("אורחים", ["yes", "seated"]);
   const recentItems = RECENT.map(id => GUESTS.find(g => g.id === id)!).map(recent).join("");
   return `<section class="lp-section lp-dash" id="dashboard" aria-labelledby="dashboard-title">
   <div class="lp-wrap">
     <div class="lp-section-head">${sectionHead("dashboard", "05", DASH.eyebrow, DASH.h2, DASH.lead)}</div>
-    <div class="lp-app lp-paper" data-dash>
+    <div class="lp-app lp-paper" data-dash data-demo-card>
       <div class="lp-demo-bar">${fictional}<span>החתונה של מאיה ועומר</span></div>
-      <ul class="lp-stats" aria-label="סיכום">${stats}</ul>
+      <div class="lp-stat-groups">${stats}</div>
       <div class="lp-app-grid">
         <div class="lp-app-panel lp-recent-panel">
           <h3 class="lp-h3">תשובות אחרונות</h3>
           <ul class="lp-recent" data-recent>${recentItems}</ul>
+          <div class="lp-send">
+            <p><strong>${esc(DASH.send)}</strong></p>
+            <p class="lp-small" id="lp-send-note" role="status" aria-live="polite">${esc(DASH.sendNote)}</p>
+          </div>
         </div>
         <div class="lp-app-panel">
           <h3 class="lp-h3">מוזמנים</h3>
           <ul class="lp-rows" id="lp-rows" data-rows>${GUESTS.map(row).join("")}</ul>
           <button type="button" class="lp-rows-more" data-rows-more aria-controls="lp-rows" aria-expanded="true" hidden data-more="${esc(`הצגת כל המוזמנים (${GUESTS.length})`)}" data-less="הצגת פחות מוזמנים">הצגת כל המוזמנים (${GUESTS.length})</button>
         </div>
-      </div>
-      <div class="lp-send">
-        <p><strong>${esc(DASH.send)}</strong></p>
-        <p class="lp-small" id="lp-send-note" role="status" aria-live="polite">${esc(DASH.sendNote)}</p>
       </div>
     </div>
   </div>

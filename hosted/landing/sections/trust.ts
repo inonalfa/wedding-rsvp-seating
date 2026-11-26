@@ -29,7 +29,7 @@ export function trust() {
     </div>
     <div class="lp-faq" id="faq">
       <h2 class="lp-h2 lp-h2-sm">שאלות נפוצות</h2>
-      ${faq}
+      <div class="lp-faq-list">${faq}</div>
     </div>
   </div>
 </section>`;

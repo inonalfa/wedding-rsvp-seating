@@ -14,7 +14,8 @@ body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-6 { tran
 @media (max-width: 899px) {
   body.landing-page[data-motion="on"] .lp-frag { justify-self: center; }
   body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag { width: 86%; }
-  body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag + .lp-frag { margin-top: -20px; }
+  body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag { padding-bottom: 28px; }
+  body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag + .lp-frag { margin-top: -14px; }
   body.landing-page[data-motion="on"] .lp-frags .lp-frag { transition: transform var(--lp-slow) var(--lp-ease), width var(--lp-slow) var(--lp-ease), margin var(--lp-slow) var(--lp-ease); }
 }
 body.landing-page[data-motion="on"] .lp-frag:nth-child(2) { transition-delay: 60ms; }

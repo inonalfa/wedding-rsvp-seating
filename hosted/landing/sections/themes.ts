@@ -34,7 +34,7 @@ export function themes() {
       <fieldset class="lp-pills" data-themes><legend class="lp-sr">ערכת עיצוב</legend>${radios}</fieldset>
       <p class="lp-sr" id="lp-theme-status" role="status" aria-live="polite">מוצגת ערכת גן ירוק</p>
     </div>
-    <div class="lp-inv-frame">
+    <div class="lp-inv-frame" data-demo-card>
       <div class="lp-demo-bar">${fictional}</div>
       ${invitation()}
     </div>

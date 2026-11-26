@@ -14,7 +14,7 @@ export function rsvpDemo() {
       ${sectionHead("rsvp-demo", "02", RSVP.eyebrow, RSVP.h2, RSVP.lead)}
       <ul class="lp-ticks">${facts}</ul>
     </div>
-    <div class="lp-paper lp-invite-mini">
+    <div class="lp-paper lp-invite-mini" data-demo-card>
       <div class="lp-demo-bar">${fictional}<span class="lp-demo-url" dir="ltr">/invite/…</span></div>
       <p class="lp-mini-kicker">${esc(COUPLE.a)} ו${esc(COUPLE.b)} מתחתנים</p>
       <p class="lp-mini-greet"><strong>${esc(first)},</strong> נשמח מאוד לחגוג איתכם.</p>

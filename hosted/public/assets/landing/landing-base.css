@@ -69,6 +69,15 @@ body.landing-page .lp-hero-grid { display: flex; flex-direction: column; gap: 12
 body.landing-page .lp-hero-lead { max-width: 30em; }
 body.landing-page .lp-hero-copy .lp-small { font-size: .8125rem; line-height: 1.5; margin-top: 12px; }
 @media (max-width: 459px) { body.landing-page .lp-hero .lp-cta-row { gap: .5rem; margin-bottom: 0; } body.landing-page .lp-hero .lp-cta-row .lp-btn { flex: 1 1 auto; padding-inline: .9rem; font-size: 1rem; } }
+/* mobile: pull the envelope up so the open button clears the fold */
+@media (max-width: 767px) {
+  body.landing-page .lp-hero { padding-block: .5rem 2.5rem; }
+  body.landing-page .lp-hero-grid { gap: 0; }
+  body.landing-page .lp-hero .lp-h1 { margin-bottom: .35em; }
+  body.landing-page .lp-hero-lead { margin-bottom: 1rem; }
+  body.landing-page .lp-hero-copy .lp-small { margin: 10px 0 0; }
+  body.landing-page .lp-env-stage { --env-w: min(82vw, 320px); margin-top: 8px; }
+}
 @media (min-width: 900px) {
   body.landing-page .lp-hero { padding-block: 4.5rem 7rem; }
   body.landing-page .lp-hero-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); align-items: center; column-gap: clamp(48px, 6vw, 112px); }
