@@ -1,0 +1,44 @@
+/* Motion layer. Scattered/closed starting states exist only when JS set body[data-motion="on"]
+   (JS present and prefers-reduced-motion is not "reduce"). Transforms and opacity only. */
+@keyframes lp-bump { 0% { opacity: .35; } 100% { opacity: 1; } }
+
+body.landing-page[data-motion="on"] .lp-frag { transition: transform var(--lp-slow) var(--lp-ease), opacity var(--lp-slow) var(--lp-ease); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag { opacity: .9; }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-1 { transform: translate(-14px, 26px) rotate(-5deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-2 { transform: translate(18px, -10px) rotate(4deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-3 { transform: translate(-22px, 14px) rotate(3deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-4 { transform: translate(12px, 30px) rotate(-3.5deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-5 { transform: translate(-10px, -18px) rotate(5deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-6 { transform: translate(20px, 8px) rotate(-4.5deg); }
+body.landing-page[data-motion="on"] .lp-frag:nth-child(2) { transition-delay: 60ms; }
+body.landing-page[data-motion="on"] .lp-frag:nth-child(3) { transition-delay: 120ms; }
+body.landing-page[data-motion="on"] .lp-frag:nth-child(4) { transition-delay: 180ms; }
+body.landing-page[data-motion="on"] .lp-frag:nth-child(5) { transition-delay: 240ms; }
+body.landing-page[data-motion="on"] .lp-frag:nth-child(6) { transition-delay: 300ms; }
+/* while scattered the "after" text reads as a faint draft; it sharpens once settled */
+body.landing-page[data-motion="on"] .lp-frag-after { transition: opacity var(--lp-slow) var(--lp-ease) 200ms; }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-after { opacity: .55; }
+
+/* settled fragment gets a gold hairline that draws in */
+body.landing-page .lp-frag::after { content: ""; position: absolute; inset-inline: 1.1rem; bottom: .6rem; height: 1px; background: var(--lp-gold); transform-origin: right; transform: scaleX(1); }
+body.landing-page[data-motion="on"] .lp-frag::after { transition: transform var(--lp-slow) var(--lp-ease) 300ms; }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag::after { transform: scaleX(0); }
+
+/* hero gold underline under "בחינם." draws once on load (decorative pseudo element, H1 text itself never animates) */
+body.landing-page[data-motion="on"] .lp-h1 em::after { animation: lp-draw var(--lp-slow) var(--lp-ease) 400ms both; }
+@keyframes lp-draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+/* seating feedback */
+body.landing-page[data-motion="on"] .lp-chip:hover { transform: translateY(-1px); }
+body.landing-page[data-motion="on"] .lp-table { transition: transform var(--lp-fast) var(--lp-ease); }
+body.landing-page[data-motion="on"] .lp-table.is-target:hover { transform: translateY(-2px); }
+body.landing-page .lp-chip.is-dragging { opacity: .5; }
+
+/* theme crossfade */
+body.landing-page[data-motion="on"] .lp-inv { transition: opacity var(--lp-mid) var(--lp-ease); }
+body.landing-page .lp-inv.is-swapping { opacity: 0; }
+
+/* hard stop for users who asked for less motion, regardless of JS */
+@media (prefers-reduced-motion: reduce) {
+  body.landing-page *, body.landing-page *::before, body.landing-page *::after { transition-duration: 0s !important; transition-delay: 0s !important; animation: none !important; }
+}

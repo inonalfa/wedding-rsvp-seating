@@ -1,0 +1,14 @@
+/* Loaded only inside <noscript>: show the settled final state and hide controls that need JS. */
+body.landing-page .lp-env .lp-env-flap { transform: rotateX(180deg); z-index: 0; }
+body.landing-page .lp-env .lp-seal { opacity: 0; }
+body.landing-page .lp-env .lp-card { transform: translateY(-58%); }
+body.landing-page .lp-env-btn,
+body.landing-page [data-rsvp] .lp-choice,
+body.landing-page [data-rsvp] .lp-status,
+body.landing-page [data-seating] .lp-link-btn,
+body.landing-page .lp-seat-status,
+body.landing-page .lp-row-send,
+body.landing-page #lp-send-note { display: none; }
+body.landing-page .lp-pills { pointer-events: none; }
+body.landing-page .lp-env { cursor: default; }
+@media (max-width: 459px) { body.landing-page .lp-env .lp-card { transform: translateY(-50%); } }
