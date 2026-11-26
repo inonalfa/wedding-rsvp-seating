@@ -12,6 +12,7 @@ import { appShell, landingPage } from "./shell";
 import { servePhoto } from "./media";
 import { privacyPage, termsPage } from "./legal";
 import { feedbackPage, publicFeedbackApi, type ExecutionCtxLike } from "./feedback";
+import { capacityPage } from "./capacity";
 import { tableSearch } from "./table-search";
 import { purgeExpired } from "./retention";
 
@@ -65,6 +66,14 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
         }
         const owner = await sessionOwner(request, env);
         return feedbackPage(request, env, owner, clientKey, Date.now(), fetcher, ctx);
+      }
+      if (url.pathname === "/capacity") {
+        if (request.method === "GET") {
+          const blocked = await limited(env.CLIENT_LIMIT, "capacity-page:" + await clientKey());
+          if (blocked) return blocked;
+        }
+        const owner = await sessionOwner(request, env);
+        return capacityPage(request, env, owner, clientKey, Date.now(), fetcher, ctx);
       }
       if (url.pathname === "/api/feedback") {
         const owner = await sessionOwner(request, env);
