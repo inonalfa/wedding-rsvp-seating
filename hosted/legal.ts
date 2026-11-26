@@ -1,11 +1,23 @@
-import { page } from "./http";
+import { escapeHtml, page } from "./http";
 
-export function privacyPage() {
+const defaultContactEmail = "office@alfa-ai.co.il";
+
+export function hostedContactEmail(env?: { HOSTED_CONTACT_EMAIL?: string }) {
+  return env?.HOSTED_CONTACT_EMAIL?.trim() || defaultContactEmail;
+}
+
+function contactMailto(env?: { HOSTED_CONTACT_EMAIL?: string }) {
+  const email = escapeHtml(hostedContactEmail(env));
+  return `<a href="mailto:${email}" dir="ltr">${email}</a>`;
+}
+
+export function privacyPage(env?: { HOSTED_CONTACT_EMAIL?: string }) {
+  const contact = contactMailto(env);
   return page("מדיניות פרטיות - אישור הגעה פלוס", `  <p class="muted">עדכון אחרון: 24.11.2026</p>
   <h2>מי אנחנו</h2>
   <p>"אישור הגעה פלוס" הוא שירות חינמי בקוד פתוח לניהול אירועים, הזמנות, אישורי הגעה וסידורי הושבה.</p>
   <p>השירות מופעל ומנוהל על ידי ינון אלפנדרי.</p>
-  <p>לפניות בנושא פרטיות והגנה על מידע אישי ניתן לפנות לכתובת: <a href="mailto:office@hamisrd.co.il" dir="ltr">office@hamisrd.co.il</a>.</p>
+  <p>לפניות בנושא פרטיות והגנה על מידע אישי ניתן לפנות לכתובת: ${contact}.</p>
   <h2>איזה מידע נשמר</h2>
   <p>במסגרת השימוש בשירות עשוי להישמר המידע הבא:</p>
   <ul>
@@ -93,11 +105,12 @@ export function privacyPage() {
   <p>הגרסה העדכנית תפורסם באתר בצירוף מועד העדכון האחרון. במקרה של שינוי מהותי יימסר יידוע מתאים בהתאם לנסיבות ולדרישות הדין.</p>
   <h2>יצירת קשר</h2>
   <p>לכל שאלה, בקשה או פנייה בנוגע לפרטיות, אבטחת מידע ומימוש זכויות ניתן לפנות לכתובת:</p>
-  <p><a href="mailto:office@hamisrd.co.il" dir="ltr">office@hamisrd.co.il</a></p>
+  <p>${contact}</p>
   <p class="muted small"><a href="/terms">תנאי שימוש</a> · <a href="/feedback">שליחת פידבק</a> · <a href="/">דף הבית</a></p>`, 200, false, false, { bodyClass: "legal" });
 }
 
-export function termsPage() {
+export function termsPage(env?: { HOSTED_CONTACT_EMAIL?: string }) {
+  const contact = contactMailto(env);
   return page("תנאי שימוש - אישור הגעה פלוס", `  <p class="muted">עדכון אחרון: 24.11.2026</p>
   <h2>כללי</h2>
   <p>ברוכים הבאים ל"אישור הגעה פלוס", שירות חינמי בקוד פתוח לניהול אירועים, הזמנות, אישורי הגעה וסידורי הושבה.</p>
@@ -211,6 +224,6 @@ export function termsPage() {
   <p>במקרה של שינוי מהותי, תימסר הודעה מתאימה למשתמשים בהתאם לנסיבות ולדרישות הדין.</p>
   <h2>יצירת קשר</h2>
   <p>לשאלות, דיווח על תקלות, בקשות ופניות בנוגע לשירות ניתן לפנות לכתובת:</p>
-  <p><a href="mailto:office@hamisrd.co.il" dir="ltr">office@hamisrd.co.il</a></p>
+  <p>${contact}</p>
   <p class="muted small"><a href="/privacy">מדיניות פרטיות</a> · <a href="/feedback">שליחת פידבק</a> · <a href="/">דף הבית</a></p>`, 200, false, false, { bodyClass: "legal" });
 }

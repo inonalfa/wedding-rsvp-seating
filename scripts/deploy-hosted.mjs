@@ -47,7 +47,9 @@ async function run() {
   if (!/^[a-f0-9]{32}$/i.test(account) || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(database) || !/[1-9a-f]/i.test(database)) {
     throw new Error("Invalid hosted account or database ID");
   }
-  if (!/^https:\/\/wedding-rsvp-seating-hosted\.[a-z0-9-]+\.workers\.dev$/.test(origin) && origin !== "https://rsvp.hamisrd.co.il") throw new Error("Use the exact hosted workers.dev origin or https://rsvp.hamisrd.co.il");
+  if (!/^https:\/\/wedding-rsvp-seating-hosted\.[a-z0-9-]+\.workers\.dev$/.test(origin) && origin !== "https://rsvp.hamisrd.co.il" && origin !== "https://rsvp.alfa-ai.co.il") {
+    throw new Error("Use the exact hosted workers.dev origin, https://rsvp.alfa-ai.co.il, or https://rsvp.hamisrd.co.il");
+  }
   if (base.name === existing.name || existing.d1_databases.some(binding => binding.database_id === database)) {
     throw new Error("Hosted configuration must not target the existing deployment");
   }
@@ -62,7 +64,9 @@ async function run() {
   const vars = Object.fromEntries(["HOSTED_ORIGIN", "GOOGLE_CLIENT_ID", "TURNSTILE_SITE_KEY", "HOSTED_OPERATOR_SUB", "CF_ACCOUNT_ID"]
     .map(name => [name, required(name)]));
   // Optional: shown on /privacy and /terms. Password sign-in stays off unless HOSTED_PASSWORD_LOGIN=1 is set on purpose.
-  for (const name of ["HOSTED_CONTACT_EMAIL", "HOSTED_PASSWORD_LOGIN", "FEEDBACK_EMAIL_TO", "FEEDBACK_EMAIL_FROM", "FEEDBACK_GITHUB_REPO"]) if (process.env[name]?.trim()) vars[name] = process.env[name].trim();
+  for (const name of ["HOSTED_CONTACT_EMAIL", "HOSTED_PASSWORD_LOGIN", "FEEDBACK_EMAIL_TO", "FEEDBACK_EMAIL_FROM", "FEEDBACK_GITHUB_REPO", "HOSTED_LEGACY_ORIGINS", "HOSTED_REDIRECT_LEGACY"]) {
+    if (process.env[name]?.trim()) vars[name] = process.env[name].trim();
+  }
   const [subscriptions, remoteDb] = await Promise.all([
     api("/accounts/" + account + "/subscriptions", token),
     api("/accounts/" + account + "/d1/database/" + database, token),

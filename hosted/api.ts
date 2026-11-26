@@ -9,6 +9,7 @@ import { maxPhotoBytes, photoStore, readLimitedBody, sniffImage, type PhotoKind 
 import { seatingStore } from "./seating";
 import { signStaffLookup } from "./table-search";
 import { hasHeadroom } from "./usage";
+import { sameAllowedOrigin } from "./origins";
 
 const timeZone = "Asia/Jerusalem";
 const uuid = /^[0-9a-f-]{36}$/;
@@ -195,7 +196,7 @@ async function route(request: Request, env: AuthEnv, owner: string, now: number,
   if (path === "/state" && method === "GET") return json(await state(env, owner, now));
 
   if (method !== "GET") {
-    if (!env.HOSTED_ORIGIN || new URL(request.url).origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+    if (!sameAllowedOrigin(request, env)) {
       fail(403, "הבקשה נחסמה");
     }
   }

@@ -2,6 +2,7 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { page, readForm, redirectTo } from "./http";
 import { ownerStore } from "./store";
 import { sessionOwner, type AuthEnv } from "./auth";
+import { sameAllowedOrigin } from "./origins";
 
 const day = 86_400_000;
 const exportQueries = {
@@ -48,8 +49,7 @@ export async function dataPage(request: Request, env: AuthEnv, owner: string, ev
       <form method="post"><button name="action" value="export">הורדת נתוני האירוע</button></form>
       <form method="post"><label><input type="checkbox" name="confirm" value="yes" required> אני מבין שהמחיקה בלתי הפיכה במערכת</label> <button name="action" value="delete">מחיקת אירוע</button></form>`);
   }
-  if (request.method !== "POST" || !env.HOSTED_ORIGIN || new URL(request.url).origin !== env.HOSTED_ORIGIN ||
-      request.headers.get("origin") !== env.HOSTED_ORIGIN) return page("הבקשה נחסמה", "", 403);
+  if (request.method !== "POST" || !sameAllowedOrigin(request, env)) return page("הבקשה נחסמה", "", 403);
   if (await sessionOwner(request, env, now, 15 * 60_000) !== owner) {
     return page("יש להתחבר מחדש", `<p>ייצוא ומחיקה דורשים התחברות ב-15 הדקות האחרונות.</p><a href="/auth/login">התחברות</a> · <a href="${path}">חזרה</a>`, 403);
   }

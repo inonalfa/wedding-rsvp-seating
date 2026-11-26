@@ -2,6 +2,7 @@ import type { D1Database } from "@cloudflare/workers-types";
 import { checkChallenge, widget } from "./abuse";
 import { cookie, hash, random, recordSession, redirect, sessionCookie, type AuthEnv } from "./auth";
 import { escapeHtml, page, readForm } from "./http";
+import { sameAllowedOrigin } from "./origins";
 
 const encoder = new TextEncoder();
 const algorithm = "pbkdf2-sha256";
@@ -143,7 +144,7 @@ export async function passwordRoute(request: Request, env: AuthEnv, now: number,
   const isSignup = url.pathname === "/auth/signup" && request.method === "POST";
   if (!isLogin && !isSignup) return null;
   if (!passwordsEnabled(env)) return page("העמוד לא נמצא", "", 404);
-  if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+  if (!sameAllowedOrigin(request, env)) {
     return page("הבקשה נחסמה", "", 403);
   }
   const form = await readForm(request, 4096);

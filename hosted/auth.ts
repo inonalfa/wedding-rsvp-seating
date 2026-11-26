@@ -4,10 +4,13 @@ import type { FeedbackEnv } from "./feedback";
 import { authPage, passwordRoute } from "./password";
 import { page } from "./http";
 import type { D1Database } from "@cloudflare/workers-types";
+export { hostedOriginAllowed } from "./origins";
 
 export interface AuthEnv extends AbuseEnv, UsageEnv, FeedbackEnv {
   HOSTED_DB: D1Database;
   HOSTED_ORIGIN?: string;
+  HOSTED_LEGACY_ORIGINS?: string;
+  HOSTED_REDIRECT_LEGACY?: string;
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   HOSTED_AUTH_SECRET?: string;
@@ -20,17 +23,6 @@ export interface AuthEnv extends AbuseEnv, UsageEnv, FeedbackEnv {
 
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
-export function hostedOriginAllowed(origin: string | undefined) {
-  if (!origin) return true;
-  try {
-    const url = new URL(origin);
-    if (url.protocol === "https:") return true;
-    const host = url.hostname.replace(/^\[|\]$/g, "");
-    return url.protocol === "http:" && (host === "localhost" || host === "127.0.0.1" || host === "::1");
-  } catch {
-    return false;
-  }
-}
 
 export const sessionCookie = "__Host-hosted_session";
 const loginCookie = "__Host-hosted_login";
