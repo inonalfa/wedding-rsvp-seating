@@ -101,6 +101,15 @@ export function parseFeedbackInput(
   return { category, message, replyEmail, pageUrl };
 }
 
+/** Same reply-email rules as parseFeedbackInput. Returns "" for empty input. */
+export function parseReplyEmail(value: unknown): string {
+  const rawEmail = typeof value === "string" ? value.trim() : "";
+  if (rawEmail && (controlChars.test(rawEmail) || rawEmail.length > 120 || !emailPattern.test(rawEmail))) {
+    throw new FeedbackError(400, "כתובת המייל אינה תקינה");
+  }
+  return rawEmail;
+}
+
 function formatJerusalemTime(now: number) {
   return new Intl.DateTimeFormat("he-IL", {
     timeZone: "Asia/Jerusalem",
@@ -253,7 +262,9 @@ export async function submitFeedback(
   now = Date.now(),
   fetcher: typeof fetch = fetch,
   ctx?: ExecutionCtxLike,
+  options: { github?: boolean } = {},
 ): Promise<{ feedbackId: string }> {
+  const useGithub = options.github !== false;
   const feedbackId = crypto.randomUUID();
   await env.HOSTED_DB.prepare(
     `INSERT INTO feedback(feedback_id, account_id, category, message, reply_email, page_url, email_status, github_status, created_at)
@@ -273,19 +284,21 @@ export async function submitFeedback(
         pageUrl: input.pageUrl,
         now,
       }),
-      createGithubFeedbackIssue(
-        env,
-        {
-          feedbackId,
-          signedIn: Boolean(input.accountId),
-          category: input.category,
-          message: input.message,
-          hasReplyEmail: Boolean(input.replyEmail),
-          pageUrl: input.pageUrl,
-          now,
-        },
-        fetcher,
-      ),
+      useGithub
+        ? createGithubFeedbackIssue(
+          env,
+          {
+            feedbackId,
+            signedIn: Boolean(input.accountId),
+            category: input.category,
+            message: input.message,
+            hasReplyEmail: Boolean(input.replyEmail),
+            pageUrl: input.pageUrl,
+            now,
+          },
+          fetcher,
+        )
+        : Promise.resolve({ status: "skipped" as const, issueNumber: null }),
     ]);
     try {
       await env.HOSTED_DB.prepare(
