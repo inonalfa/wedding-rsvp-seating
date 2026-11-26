@@ -1,8 +1,8 @@
 import { escapeHtml as esc, page } from "../http";
-import { DESCRIPTION, OG_TITLE, TITLE } from "./copy";
+import { DESCRIPTION, HERO, OG_TITLE, TITLE } from "./copy";
 import { GUESTS, RSVP_GUEST_ID, TABLES, RECENT } from "./data";
 import { LANDING_VERSION as V } from "./version";
-import { ctaRow, footer, header } from "./sections/header";
+import { cta, ctaRow, footer, header } from "./sections/header";
 import { hero } from "./sections/hero";
 import { story } from "./sections/story";
 import { rsvpDemo } from "./sections/rsvp";
@@ -55,10 +55,11 @@ ${rsvpDemo()}
 ${seating()}
 ${themes()}
 ${dashboard()}
-<div class="lp-wrap lp-after-demos">${ctaRow("lp-cta-center")}</div>
+<div class="lp-wrap lp-after-demos"><p class="lp-small lp-after-note">${esc(HERO.note)}</p>${ctaRow("lp-cta-center lp-cta-stack")}</div>
 ${trust()}
 ${finalCta()}
 </main>
+<div class="lp-sticky" data-sticky inert>${cta("primary")}</div>
 ${footer()}`;
 }
 

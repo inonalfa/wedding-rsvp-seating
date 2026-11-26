@@ -8,7 +8,8 @@ body.landing-page [data-rsvp] .lp-status,
 body.landing-page [data-seating] .lp-link-btn,
 body.landing-page .lp-seat-status,
 body.landing-page .lp-row-send,
-body.landing-page #lp-send-note { display: none; }
+body.landing-page #lp-send-note,
+body.landing-page .lp-sticky { display: none; }
 body.landing-page .lp-pills { pointer-events: none; }
 body.landing-page .lp-env { cursor: default; }
-@media (max-width: 459px) { body.landing-page .lp-env .lp-card { transform: translateY(-50%); } }
+@media (max-width: 899px) { body.landing-page .lp-env .lp-card { transform: translateY(-40%); } }

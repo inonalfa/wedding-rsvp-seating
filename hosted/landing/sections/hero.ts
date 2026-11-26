@@ -25,7 +25,7 @@ function envelope() {
       <path d="M1 259 L170 150 M399 259 L230 150" stroke="#e2d3b0" fill="none"/>
     </svg>
     <div class="lp-env-flap" aria-hidden="true">
-      <svg viewBox="0 0 400 150" preserveAspectRatio="none" focusable="false"><path d="M1 1 L399 1 L399 8 L200 148 L1 8 Z" fill="#f2e8d1" stroke="#d6c49e"/></svg>
+      <svg viewBox="0 0 400 150" preserveAspectRatio="none" focusable="false"><path d="M1 1 L399 1 L399 8 L200 148 L1 8 Z" fill="#efe3cb" stroke="#d9c7a2"/></svg>
     </div>
     <div class="lp-seal" aria-hidden="true">
       <svg viewBox="0 0 64 64" focusable="false">

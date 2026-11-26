@@ -11,7 +11,7 @@ export function rsvpDemo() {
   return `<section class="lp-section lp-rsvp" id="rsvp-demo" aria-labelledby="rsvp-demo-title">
   <div class="lp-wrap lp-split">
     <div class="lp-split-copy">
-      ${sectionHead("rsvp-demo", RSVP.eyebrow, RSVP.h2, RSVP.lead)}
+      ${sectionHead("rsvp-demo", "02", RSVP.eyebrow, RSVP.h2, RSVP.lead)}
       <ul class="lp-ticks">${facts}</ul>
     </div>
     <div class="lp-paper lp-invite-mini">
@@ -27,7 +27,7 @@ export function rsvpDemo() {
           <button type="button" class="lp-btn lp-btn-primary" data-answer="yes">מגיעים</button>
           <button type="button" class="lp-btn lp-btn-secondary" data-answer="no">לא מגיעים</button>
         </div>
-        <p class="lp-status" id="lp-rsvp-status" role="status" aria-live="polite">עדיין לא עניתם. התשובה תופיע בדשבורד למטה.</p>
+        <p class="lp-status" id="lp-rsvp-status" role="status" aria-live="polite">עדיין לא עניתם. התשובה תופיע בדשבורד&nbsp;למטה.</p>
       </div>
     </div>
   </div>

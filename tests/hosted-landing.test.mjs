@@ -147,3 +147,35 @@ test("demo store refuses unconfirmed and over-capacity seating", () => {
   assert.equal(store.guest("g7").rsvp, "pending");
   assert.equal(GUESTS.find(g => g.id === "g7").rsvp, "pending");
 });
+
+test("dashboard: every guest row is visible without JS; the 5-row toggle is hidden until JS enables it", async () => {
+  const { html } = await home();
+  const list = html.match(/<ul class="lp-rows"[^>]*>([\s\S]*?)<\/ul>/);
+  assert.ok(list, "guest list rendered");
+  assert.doesNotMatch(list[0].slice(0, list[0].indexOf(">")), /\bhidden\b|is-collapsed/);
+  const rows = [...list[1].matchAll(/<li class="lp-row"([^>]*)>/g)];
+  assert.equal(rows.length, GUESTS.length);
+  for (const r of rows) assert.doesNotMatch(r[1], /\bhidden\b/);
+  const btn = html.match(/<button[^>]*data-rows-more[^>]*>([^<]*)<\/button>/);
+  assert.ok(btn, "toggle button rendered");
+  assert.match(btn[0], /aria-controls="lp-rows"/);
+  assert.match(btn[0], /aria-expanded="/);
+  assert.match(btn[0], /\shidden[\s>]/);
+  assert.equal(btn[1], `הצגת כל המוזמנים (${GUESTS.length})`);
+  const css = readFileSync(new URL("landing-sections.css", assetsDir), "utf8");
+  assert.match(css, /\.lp-rows\.is-collapsed > \.lp-row:nth-child\(n \+ 6\) \{ display: none; \}/);
+});
+
+test("seating table buttons: no aria-label, accessible name starts with the visible table name", async () => {
+  const { html } = await home();
+  const buttons = [...html.matchAll(/<button type="button" class="lp-table-btn" data-table="(t\d+)"([^>]*)>([\s\S]*?)<\/button>/g)];
+  assert.equal(buttons.length, TABLES.length);
+  for (const [, id, attrs, inner] of buttons) {
+    assert.doesNotMatch(attrs, /aria-label/, id);
+    const t = TABLES.find(x => x.id === id);
+    const text = inner.replace(/<svg[\s\S]*?<\/svg>/g, "").replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
+    assert.ok(text.startsWith(t.name), `${id}: "${text}"`);
+  }
+  const render = readFileSync(new URL("render.js", assetsDir), "utf8");
+  assert.doesNotMatch(render.match(/class="lp-table-btn"[^>]*>/)[0], /aria-label/);
+});

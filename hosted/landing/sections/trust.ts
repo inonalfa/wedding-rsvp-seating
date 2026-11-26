@@ -1,6 +1,6 @@
 import { escapeHtml as esc } from "../../http";
 import { FAQ, FINAL, TRUST } from "../copy";
-import { ctaRow } from "./header";
+import { ctaRow, eyebrow } from "./header";
 
 export function trust() {
   const limits = TRUST.limits.map(l => `<li>${esc(l)}</li>`).join("");
@@ -10,7 +10,7 @@ export function trust() {
   <div class="lp-wrap">
     <div class="lp-trust-grid">
       <div class="lp-why">
-        <p class="lp-eyebrow">${esc(TRUST.eyebrow)}</p>
+        ${eyebrow("06", TRUST.eyebrow)}
         <h2 id="free-title" class="lp-h2">${esc(TRUST.h2)}</h2>
         <p class="lp-why-line">${esc(TRUST.why)}</p>
       </div>
@@ -41,7 +41,7 @@ export function finalCta() {
     <span class="lp-ornament" aria-hidden="true"></span>
     <h2 id="start-title" class="lp-h2">${esc(FINAL.h2)}</h2>
     <p class="lp-lead">${esc(FINAL.lead)}</p>
-    ${ctaRow("lp-cta-center")}
+    ${ctaRow("lp-cta-center lp-cta-stack")}
   </div>
 </section>`;
 }

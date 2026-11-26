@@ -4,20 +4,24 @@
 
 body.landing-page[data-motion="on"] .lp-frag { transition: transform var(--lp-slow) var(--lp-ease), opacity var(--lp-slow) var(--lp-ease); }
 body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag { opacity: .9; }
-body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-1 { transform: translate(-14px, 26px) rotate(-5deg); }
-body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-2 { transform: translate(18px, -10px) rotate(4deg); }
-body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-3 { transform: translate(-22px, 14px) rotate(3deg); }
-body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-4 { transform: translate(12px, 30px) rotate(-3.5deg); }
-body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-5 { transform: translate(-10px, -18px) rotate(5deg); }
-body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-6 { transform: translate(20px, 8px) rotate(-4.5deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-1 { transform: translate(-8px, 16px) rotate(-3deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-2 { transform: translate(8px, -6px) rotate(2.5deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-3 { transform: translate(-8px, 10px) rotate(2deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-4 { transform: translate(8px, 16px) rotate(-2.5deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-5 { transform: translate(-6px, -10px) rotate(3deg); }
+body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-6 { transform: translate(8px, 6px) rotate(-3deg); }
+/* mobile: narrower, overlapping stack so the chaos stays inside the viewport and stays short */
+@media (max-width: 899px) {
+  body.landing-page[data-motion="on"] .lp-frag { justify-self: center; }
+  body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag { width: 86%; }
+  body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag + .lp-frag { margin-top: -20px; }
+  body.landing-page[data-motion="on"] .lp-frags .lp-frag { transition: transform var(--lp-slow) var(--lp-ease), width var(--lp-slow) var(--lp-ease), margin var(--lp-slow) var(--lp-ease); }
+}
 body.landing-page[data-motion="on"] .lp-frag:nth-child(2) { transition-delay: 60ms; }
 body.landing-page[data-motion="on"] .lp-frag:nth-child(3) { transition-delay: 120ms; }
 body.landing-page[data-motion="on"] .lp-frag:nth-child(4) { transition-delay: 180ms; }
 body.landing-page[data-motion="on"] .lp-frag:nth-child(5) { transition-delay: 240ms; }
 body.landing-page[data-motion="on"] .lp-frag:nth-child(6) { transition-delay: 300ms; }
-/* while scattered the "after" text reads as a faint draft; it sharpens once settled */
-body.landing-page[data-motion="on"] .lp-frag-after { transition: opacity var(--lp-slow) var(--lp-ease) 200ms; }
-body.landing-page[data-motion="on"] .lp-frags:not(.is-settled) .lp-frag-after { opacity: .55; }
 
 /* settled fragment gets a gold hairline that draws in */
 body.landing-page .lp-frag::after { content: ""; position: absolute; inset-inline: 1.1rem; bottom: .6rem; height: 1px; background: var(--lp-gold); transform-origin: right; transform: scaleX(1); }

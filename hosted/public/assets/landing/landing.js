@@ -32,7 +32,7 @@ if (frags) {
   else {
     const io = new IntersectionObserver(entries => {
       for (const e of entries) if (e.isIntersecting) { frags.classList.add("is-settled"); io.disconnect(); }
-    }, { threshold: 0.3 });
+    }, { threshold: 0.35 });
     io.observe(frags);
   }
 }
@@ -55,6 +55,35 @@ themes?.addEventListener("change", e => {
     setTimeout(() => requestAnimationFrame(apply), 160);
   } else apply();
 });
+
+// Dashboard: collapse the guest list to 5 rows (CSS class, so it survives re-renders). No JS = full list.
+const rowsEl = document.querySelector("[data-rows]");
+const more = document.querySelector("[data-rows-more]");
+if (rowsEl && more) {
+  const setRows = open => {
+    rowsEl.classList.toggle("is-collapsed", !open);
+    more.setAttribute("aria-expanded", String(open));
+    more.textContent = open ? more.dataset.less : more.dataset.more;
+  };
+  setRows(false);
+  more.hidden = false;
+  more.addEventListener("click", () => setRows(more.getAttribute("aria-expanded") !== "true"));
+}
+
+// Mobile sticky CTA: visible after the hero, hidden while the final band or footer is on screen.
+const sticky = document.querySelector("[data-sticky]");
+const heroEl = document.querySelector(".lp-hero");
+if (sticky && heroEl && "IntersectionObserver" in window) {
+  const seen = new Set();
+  const io = new IntersectionObserver(entries => {
+    for (const e of entries) { if (e.isIntersecting) seen.add(e.target); else seen.delete(e.target); }
+    const on = !seen.size;
+    sticky.classList.toggle("is-on", on);
+    sticky.toggleAttribute("inert", !on);
+    body.classList.toggle("lp-has-sticky", on);
+  });
+  for (const el of [heroEl, document.querySelector(".lp-final"), document.querySelector(".lp-footer")]) if (el) io.observe(el);
+}
 
 // Demos: load lazily when the RSVP section approaches the viewport (or immediately without IO).
 const main = document.getElementById("lp-main");

@@ -26,11 +26,11 @@ function invitation() {
 }
 
 export function themes() {
-  const radios = THEMES.list.map((t, i) => `<label class="lp-pill"><input type="radio" name="lp-theme" value="${t.id}"${i === 0 ? " checked" : ""}><span>${esc(t.name)}</span></label>`).join("");
+  const radios = THEMES.list.map((t, i) => `<label class="lp-pill lp-swatch-${t.id}"><input type="radio" name="lp-theme" value="${t.id}"${i === 0 ? " checked" : ""}><span><i class="lp-swatch" aria-hidden="true"></i>${esc(t.name)}</span></label>`).join("");
   return `<section class="lp-section lp-themes" id="invitation" aria-labelledby="invitation-title">
-  <div class="lp-wrap lp-split lp-split-rev">
+  <div class="lp-wrap lp-split lp-split-center">
     <div class="lp-split-copy">
-      ${sectionHead("invitation", THEMES.eyebrow, THEMES.h2, THEMES.lead)}
+      ${sectionHead("invitation", "04", THEMES.eyebrow, THEMES.h2, THEMES.lead)}
       <fieldset class="lp-pills" data-themes><legend class="lp-sr">ערכת עיצוב</legend>${radios}</fieldset>
       <p class="lp-sr" id="lp-theme-status" role="status" aria-live="polite">מוצגת ערכת גן ירוק</p>
     </div>

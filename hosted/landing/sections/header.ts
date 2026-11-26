@@ -33,6 +33,11 @@ export function footer() {
 /** Visible "fictional data" tag on every demo. */
 export const fictional = '<span class="lp-tag">נתונים בדויים</span>';
 
-export function sectionHead(id: string, eyebrow: string, h2: string, lead: string) {
-  return `<p class="lp-eyebrow">${esc(eyebrow)}</p><h2 id="${id}-title" class="lp-h2">${esc(h2)}</h2><p class="lp-lead">${esc(lead)}</p>`;
+/** Numbered eyebrow ("01 · ..."): a narrative spine through the page, tabular figures. */
+export function eyebrow(n: string, text: string) {
+  return `<p class="lp-eyebrow"><span class="lp-eyebrow-n">${n}</span><span aria-hidden="true"> · </span>${esc(text)}</p>`;
+}
+
+export function sectionHead(id: string, n: string, text: string, h2: string, lead: string) {
+  return `${eyebrow(n, text)}<h2 id="${id}-title" class="lp-h2">${esc(h2)}</h2><p class="lp-lead">${esc(lead)}</p>`;
 }

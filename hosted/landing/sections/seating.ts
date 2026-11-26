@@ -17,9 +17,9 @@ export function tableCard(t: DemoTable, guests: readonly DemoGuest[]) {
   const full = n >= t.cap;
   const width = Math.round((n / t.cap) * 100);
   return `<li class="lp-table${full ? " is-full" : ""}" data-table-card="${t.id}">
-    <button type="button" class="lp-table-btn" data-table="${t.id}" aria-label="${esc(`${t.name}, ${t.label}. ${n} מתוך ${t.cap} מקומות תפוסים`)}">
-      <span class="lp-table-name">${esc(t.name)}</span><span class="lp-table-label">${esc(t.label)}</span>
-      <span class="lp-table-count"><b>${n}/${t.cap}</b>${full ? " מלא" : ""}</span>
+    <button type="button" class="lp-table-btn" data-table="${t.id}">
+      <span class="lp-table-name">${esc(t.name)}</span> <span class="lp-table-label">${esc(t.label)}</span>
+      <span class="lp-table-count"><b>${n}/${t.cap}</b>${full ? " מלא" : ""}</span><span class="lp-sr">${esc(`, ${n} מתוך ${t.cap} מקומות תפוסים`)}</span>
       <svg class="lp-bar" viewBox="0 0 100 6" preserveAspectRatio="none" aria-hidden="true" focusable="false"><rect width="100" height="6" rx="3" class="lp-bar-bg"/><rect width="${width}" height="6" rx="3" class="lp-bar-fill"/></svg>
     </button>
     <ul class="lp-seated">${seated.map(g => `<li>${esc(g.name)} <span>(${g.count})</span></li>`).join("")}</ul>
@@ -32,7 +32,7 @@ export function seating() {
   return `<section class="lp-section lp-seating" id="seating" aria-labelledby="seating-title">
   <div class="lp-wrap">
     <div class="lp-section-head">
-      ${sectionHead("seating", SEATING.eyebrow, SEATING.h2, SEATING.lead)}
+      ${sectionHead("seating", "03", SEATING.eyebrow, SEATING.h2, SEATING.lead)}
       <ul class="lp-ticks lp-ticks-row">${facts}</ul>
     </div>
     <div class="lp-board lp-paper" data-seating>

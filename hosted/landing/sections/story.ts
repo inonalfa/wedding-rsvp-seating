@@ -1,5 +1,6 @@
 import { escapeHtml as esc } from "../../http";
 import { STORY } from "../copy";
+import { eyebrow } from "./header";
 
 // Each fragment pairs a planning mess (before) with the product state that replaces it (after).
 const FRAGMENTS = [
@@ -20,7 +21,7 @@ export function story() {
   return `<section class="lp-section lp-story" id="story" aria-labelledby="story-title">
   <div class="lp-wrap lp-story-grid">
     <div class="lp-story-copy">
-      <p class="lp-eyebrow">${esc(STORY.eyebrow)}</p>
+      ${eyebrow("01", STORY.eyebrow)}
       <h2 id="story-title" class="lp-h2">${esc(STORY.h2)}</h2>
       <p class="lp-lead">${esc(STORY.lead)}</p>
     </div>
