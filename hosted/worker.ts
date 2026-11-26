@@ -1,7 +1,8 @@
 import { refreshUsage, usagePage } from "./usage";
 import { connectorSnapshot } from "./connectors";
 import { limited } from "./abuse";
-import { authRoute, hostedOriginAllowed, sessionOwner, type AuthEnv } from "./auth";
+import { authRoute, sessionOwner, type AuthEnv } from "./auth";
+import { hostedOriginAllowed, legacyRedirectResponse } from "./origins";
 
 import { ownerPage } from "./events";
 import { page } from "./http";
@@ -23,12 +24,14 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
     },
     async fetch(request: Request, env: AuthEnv, ctx?: ExecutionCtxLike): Promise<Response> {
       const url = new URL(request.url);
-      if (request.method === "GET" && url.pathname === "/health") {
+      if (url.pathname === "/health") {
         return Response.json({ status: "ok" }, { headers: { "Cache-Control": "no-store" } });
       }
       if (env.HOSTED_ORIGIN && !hostedOriginAllowed(env.HOSTED_ORIGIN)) {
         return new Response("HOSTED_ORIGIN must use HTTPS outside localhost", { status: 503, headers: { "Cache-Control": "no-store" } });
       }
+      const redirected = legacyRedirectResponse(request, env);
+      if (redirected) return redirected;
       if (url.pathname.startsWith("/assets/") || url.pathname.startsWith("/fonts/")) {
         return env.ASSETS ? env.ASSETS.fetch(request) : new Response("Not found", { status: 404 });
       }
@@ -53,8 +56,8 @@ export function createHostedWorker(fetcher: typeof fetch = fetch) {
         const blocked = await limited(env.CLIENT_LIMIT, "media:" + await clientKey());
         return blocked ?? servePhoto(env.HOSTED_DB, media[1], Date.now());
       }
-      if (request.method === "GET" && url.pathname === "/privacy") return privacyPage();
-      if (request.method === "GET" && url.pathname === "/terms") return termsPage();
+      if (request.method === "GET" && url.pathname === "/privacy") return privacyPage(env);
+      if (request.method === "GET" && url.pathname === "/terms") return termsPage(env);
       if (url.pathname === "/feedback") {
         if (request.method === "GET") {
           const blocked = await limited(env.CLIENT_LIMIT, "feedback-page:" + await clientKey());

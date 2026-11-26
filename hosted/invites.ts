@@ -1,6 +1,7 @@
 import { checkChallenge, limited, widget, type AbuseEnv } from "./abuse";
 import type { D1Database } from "@cloudflare/workers-types";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
+import { sameAllowedOrigin } from "./origins";
 import { readDetails } from "./details";
 import { hebrewDate, hostsLine, invitationMarkup } from "./public/assets/invitation-view.js";
 
@@ -81,8 +82,7 @@ export async function guestInvitation(request: Request, env: InviteEnv, token: s
     }, env.HOSTED_ORIGIN, 200, Boolean(challenge));
   }
   if (request.method !== "POST") return missing();
-  if (!env.HOSTED_ORIGIN || new URL(request.url).origin !== env.HOSTED_ORIGIN ||
-      request.headers.get("origin") !== env.HOSTED_ORIGIN) return page("הבקשה נחסמה", "", 403);
+  if (!sameAllowedOrigin(request, env)) return page("הבקשה נחסמה", "", 403);
   const blocked = await limited(env.GUEST_LIMIT, "rsvp:" + verified.eventId + ":" + verified.guestId);
   if (blocked) return blocked;
   const form = await readForm(request, 4096);

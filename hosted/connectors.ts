@@ -2,6 +2,7 @@ import { verifyWebhookBodySignature } from "../lib/webhook-signature";
 import { hasHeadroom } from "./usage";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
 import { sessionOwner, type AuthEnv } from "./auth";
+import { sameAllowedOrigin } from "./origins";
 
 const privateHeaders = { "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" };
 const encoder = new TextEncoder();
@@ -12,7 +13,6 @@ async function tokenHash(token: string) {
   return Array.from(new Uint8Array(digest), x => x.toString(16).padStart(2, "0")).join("");
 }
 export async function connectorSettings(request: Request, env: AuthEnv, owner: string, eventId: string, now: number) {
-  const url = new URL(request.url);
   const path = "/events/" + eventId + "/connections";
   const event = await env.HOSTED_DB.prepare(eventOwned).bind(eventId, owner, now).first();
   if (!event) return page("האירוע לא נמצא", "", 404);
@@ -21,7 +21,7 @@ export async function connectorSettings(request: Request, env: AuthEnv, owner: s
     return page("חיבורים אופציונליים", `<p>Make ו-Google Sheets יכולים למשוך סיכום ממערכת זו באמצעות החשבון שלכם. השירות לא שולח דבר בשמכם. הפעולה עשויה לצרוך מכסה או לעלות כסף בחשבון שלכם.</p><p>החיבור ${enabled ? "פעיל" : "כבוי"}. מותרות עד 24 משיכות ביום.</p>
       <form method="post"><button name="action" value="enable">${enabled ? "החלפת מפתח" : "הפעלת חיבור"}</button>${enabled ? '<button name="action" value="disable">כיבוי חיבור</button>' : ""}</form><a href="/events/${eventId}">חזרה לאירוע</a>`);
   }
-  if (request.method !== "POST" || !env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== url.origin) {
+  if (request.method !== "POST" || !sameAllowedOrigin(request, env)) {
     return page("הבקשה נחסמה", "", 403);
   }
   if (await sessionOwner(request, env, now, 15 * 60_000) !== owner) {

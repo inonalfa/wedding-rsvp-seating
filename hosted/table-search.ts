@@ -1,6 +1,7 @@
 import type { D1Database } from "@cloudflare/workers-types";
 import { escapeHtml, page, readForm } from "./http";
 import { invitationKey } from "./invites";
+import { sameAllowedOrigin, type OriginEnv } from "./origins";
 
 const encoder = new TextEncoder();
 const eventPattern = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/;
@@ -14,7 +15,7 @@ export async function signStaffLookup(secret: string, event: string, now: number
   return [event, expires, Array.from(tag, byte => byte.toString(16).padStart(2, "0")).join("")].join(".");
 }
 
-export async function tableSearch(request: Request, env: { HOSTED_DB: D1Database; HOSTED_ORIGIN?: string; HOSTED_INVITE_SECRET?: string }, token: string, now = Date.now()) {
+export async function tableSearch(request: Request, env: OriginEnv & { HOSTED_DB: D1Database; HOSTED_INVITE_SECRET?: string }, token: string, now = Date.now()) {
   const missing = () => page("הקישור לא נמצא או שפג תוקפו", "", 404);
   const [eventId, expires, signature, extra] = token.split(".");
   if (!env.HOSTED_INVITE_SECRET || extra !== undefined || !eventPattern.test(eventId) ||
@@ -26,8 +27,7 @@ export async function tableSearch(request: Request, env: { HOSTED_DB: D1Database
   const searchForm = `<form method="post" action="/find-table/${token}"><label>שם מלא כפי שמופיע בהזמנה <input name="name" maxlength="80" required></label><button>חיפוש</button></form>`;
   if (request.method === "GET") return page("חיפוש שולחן", searchForm);
   if (request.method !== "POST") return missing();
-  if (!env.HOSTED_ORIGIN || new URL(request.url).origin !== env.HOSTED_ORIGIN ||
-      request.headers.get("origin") !== env.HOSTED_ORIGIN) return page("הבקשה נחסמה", "", 403);
+  if (!sameAllowedOrigin(request, env)) return page("הבקשה נחסמה", "", 403);
   const body = await readForm(request, 1024);
   const name = String(body?.get("name") ?? "").trim();
   if (!name || name.length > 80) return page("חיפוש שולחן", searchForm + "<p>הזינו שם מלא.</p>", 400);

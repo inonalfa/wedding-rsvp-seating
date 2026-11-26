@@ -1,10 +1,11 @@
 import type { D1Database, SendEmail } from "@cloudflare/workers-types";
 import { escapeHtml, json, page, readForm, redirectTo } from "./http";
 import { readLimitedBody } from "./media";
+import { allowedOrigins, sameAllowedOrigin, type OriginEnv } from "./origins";
 
 export type FeedbackCategory = "bug" | "idea" | "other";
 
-export interface FeedbackEnv {
+export interface FeedbackEnv extends OriginEnv {
   HOSTED_DB: D1Database;
   HOSTED_ORIGIN?: string;
   FEEDBACK_EMAIL?: SendEmail;
@@ -45,17 +46,18 @@ const categoryLabels: Record<FeedbackCategory, string> = {
   other: "אחר",
 };
 
-export function sanitizePageUrl(value: unknown, origin?: string): string | null {
+export function sanitizePageUrl(value: unknown, origin?: string | Iterable<string>): string | null {
   if (typeof value !== "string") return null;
   const cleaned = value.replace(controlChars, "").trim();
   if (!cleaned) return null;
   if (cleaned.startsWith("/") && !cleaned.startsWith("//")) {
     return cleaned.slice(0, 200);
   }
-  if (origin) {
+  const origins = typeof origin === "string" ? [origin] : origin ? [...origin] : [];
+  if (origins.length) {
     try {
       const parsed = new URL(cleaned);
-      if (parsed.origin === origin) {
+      if (origins.includes(parsed.origin)) {
         return (parsed.pathname + parsed.search + parsed.hash).slice(0, 200) || "/";
       }
     } catch {
@@ -65,9 +67,13 @@ export function sanitizePageUrl(value: unknown, origin?: string): string | null 
   return null;
 }
 
+function pageUrlOrigins(env: OriginEnv) {
+  return allowedOrigins(env);
+}
+
 export function parseFeedbackInput(
   raw: Record<string, unknown>,
-  origin?: string,
+  origin?: string | Iterable<string>,
   fallbackPageUrl?: string | null,
 ): ParsedFeedback {
   const rawCategory = typeof raw.category === "string" ? raw.category.trim() : "";
@@ -125,7 +131,7 @@ async function sendFeedbackEmail(
 ): Promise<"sent" | "skipped" | "failed"> {
   const toEmail = env.FEEDBACK_EMAIL_TO?.trim();
   if (!env.FEEDBACK_EMAIL || !toEmail) return "skipped";
-  const fromEmail = env.FEEDBACK_EMAIL_FROM?.trim() || "feedback@hamisrd.co.il";
+  const fromEmail = env.FEEDBACK_EMAIL_FROM?.trim() || "feedback@alfa-ai.co.il";
   const label = feedbackCategoryLabel(params.category);
   const when = formatJerusalemTime(params.now);
   const sourceLabel = params.signedIn ? "משתמש מחובר" : "טופס ציבורי";
@@ -373,15 +379,15 @@ export async function feedbackPage(
 ) {
   const url = new URL(request.url);
   if (request.method === "GET") {
-    const fromParam = sanitizePageUrl(url.searchParams.get("from"), env.HOSTED_ORIGIN);
-    const referer = sanitizePageUrl(request.headers.get("referer"), env.HOSTED_ORIGIN);
+    const fromParam = sanitizePageUrl(url.searchParams.get("from"), pageUrlOrigins(env));
+    const referer = sanitizePageUrl(request.headers.get("referer"), pageUrlOrigins(env));
     return renderFeedbackPage({
       sent: url.searchParams.get("sent") === "1",
       pageUrl: fromParam ?? referer ?? "/feedback",
     });
   }
   if (request.method !== "POST") return page("העמוד לא נמצא", "", 404);
-  if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+  if (!sameAllowedOrigin(request, env)) {
     return page("הבקשה נחסמה", "", 403);
   }
   const blocked = await feedbackRateLimited(env, "feedback:ip:" + await clientKey());
@@ -401,7 +407,7 @@ export async function feedbackPage(
     pageUrl: form?.get("pageUrl") ?? "",
   };
   try {
-    const parsed = parseFeedbackInput(raw, env.HOSTED_ORIGIN, sanitizePageUrl(request.headers.get("referer"), env.HOSTED_ORIGIN) ?? "/feedback");
+    const parsed = parseFeedbackInput(raw, pageUrlOrigins(env), sanitizePageUrl(request.headers.get("referer"), pageUrlOrigins(env)) ?? "/feedback");
     await submitFeedback(env, { ...parsed, accountId }, now, fetcher, ctx);
     return redirectTo("/feedback?sent=1");
   } catch (error) {
@@ -430,8 +436,7 @@ export async function publicFeedbackApi(
   ctx?: ExecutionCtxLike,
 ) {
   if (request.method !== "POST") return json({ error: "פעולה לא נתמכת" }, 405);
-  const url = new URL(request.url);
-  if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+  if (!sameAllowedOrigin(request, env)) {
     return json({ error: "הבקשה נחסמה" }, 403);
   }
   const blocked = await feedbackRateLimited(env, "feedback:ip:" + await clientKey());
@@ -451,7 +456,7 @@ export async function publicFeedbackApi(
     return json({ error: "נתונים לא תקינים" }, 400);
   }
   try {
-    const parsed = parseFeedbackInput(raw as Record<string, unknown>, env.HOSTED_ORIGIN, sanitizePageUrl(request.headers.get("referer"), env.HOSTED_ORIGIN));
+    const parsed = parseFeedbackInput(raw as Record<string, unknown>, pageUrlOrigins(env), sanitizePageUrl(request.headers.get("referer"), pageUrlOrigins(env)));
     const { feedbackId } = await submitFeedback(env, { ...parsed, accountId }, now, fetcher, ctx);
     return json({ ok: true, id: feedbackId }, 201);
   } catch (error) {

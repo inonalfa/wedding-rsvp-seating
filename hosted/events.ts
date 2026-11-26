@@ -8,6 +8,7 @@ import { parseGuestCsv } from "./csv";
 import { escapeHtml, page, readForm, redirectTo } from "./http";
 import { ownerStore } from "./store";
 import type { AuthEnv } from "./auth";
+import { sameAllowedOrigin } from "./origins";
 
 const day = 86_400_000;
 const timeZone = "Asia/Jerusalem";
@@ -43,7 +44,7 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
   const url = new URL(request.url);
   const store = ownerStore(env.HOSTED_DB, ownerId, now);
   if (request.method === "POST" && url.pathname === "/events") {
-    if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+    if (!sameAllowedOrigin(request, env)) {
       return page("הבקשה נחסמה", "", 403);
     }
     const form = await readForm(request, 2048);
@@ -61,7 +62,7 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
 
   const importMatch = url.pathname.match(/^\/events\/([0-9a-f-]{36})\/guests$/);
   if (request.method === "POST" && importMatch) {
-    if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+    if (!sameAllowedOrigin(request, env)) {
       return page("הבקשה נחסמה", "", 403);
     }
     const event = store.event(importMatch[1]);
@@ -102,7 +103,7 @@ export async function ownerPage(request: Request, env: AuthEnv, ownerId: string,
 
   const revokeMatch = url.pathname.match(/^\/events\/([0-9a-f-]{36})\/invites\/([0-9a-f-]{36})\/revoke$/);
   if (request.method === "POST" && revokeMatch) {
-    if (!env.HOSTED_ORIGIN || url.origin !== env.HOSTED_ORIGIN || request.headers.get("origin") !== env.HOSTED_ORIGIN) {
+    if (!sameAllowedOrigin(request, env)) {
       return page("הבקשה נחסמה", "", 403);
     }
     const revoked = await store.event(revokeMatch[1]).revokeInvitation(revokeMatch[2]);

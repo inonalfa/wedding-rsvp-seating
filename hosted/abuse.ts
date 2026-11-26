@@ -1,8 +1,8 @@
 import { escapeHtml, page } from "./http";
+import { hostnameAllowed, type OriginEnv } from "./origins";
 
 type RateLimiter = { limit(options: { key: string }): Promise<{ success: boolean }> };
-export type AbuseEnv = {
-  HOSTED_ORIGIN?: string;
+export type AbuseEnv = OriginEnv & {
   TURNSTILE_SITE_KEY?: string;
   TURNSTILE_SECRET?: string;
   LOGIN_LIMIT?: RateLimiter;
@@ -41,7 +41,7 @@ export async function checkChallenge(env: AbuseEnv, form: FormData | null, actio
     });
     if (!verify.ok) return false;
     const result = await verify.json() as { success: boolean; hostname: string; action: string };
-    return result.success === true && result.hostname === new URL(env.HOSTED_ORIGIN).hostname && result.action === action;
+    return result.success === true && hostnameAllowed(result.hostname, env) && result.action === action;
   } catch {
     return false;
   }
