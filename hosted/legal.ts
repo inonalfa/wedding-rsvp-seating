@@ -13,7 +13,7 @@ function contactMailto(env?: { HOSTED_CONTACT_EMAIL?: string }) {
 
 export function privacyPage(env?: { HOSTED_CONTACT_EMAIL?: string }) {
   const contact = contactMailto(env);
-  return page("מדיניות פרטיות - אישור הגעה פלוס", `  <p class="muted">עדכון אחרון: 24.11.2026</p>
+  return page("מדיניות פרטיות - אישור הגעה פלוס", `  <p class="muted">עדכון אחרון: 26.11.2026</p>
   <h2>מי אנחנו</h2>
   <p>"אישור הגעה פלוס" הוא שירות חינמי בקוד פתוח לניהול אירועים, הזמנות, אישורי הגעה וסידורי הושבה.</p>
   <p>השירות מופעל ומנוהל על ידי ינון אלפנדרי.</p>
@@ -111,7 +111,7 @@ export function privacyPage(env?: { HOSTED_CONTACT_EMAIL?: string }) {
 
 export function termsPage(env?: { HOSTED_CONTACT_EMAIL?: string }) {
   const contact = contactMailto(env);
-  return page("תנאי שימוש - אישור הגעה פלוס", `  <p class="muted">עדכון אחרון: 24.11.2026</p>
+  return page("תנאי שימוש - אישור הגעה פלוס", `  <p class="muted">עדכון אחרון: 26.11.2026</p>
   <h2>כללי</h2>
   <p>ברוכים הבאים ל"אישור הגעה פלוס", שירות חינמי בקוד פתוח לניהול אירועים, הזמנות, אישורי הגעה וסידורי הושבה.</p>
   <p>השירות מופעל על ידי ינון אלפנדרי.</p>
