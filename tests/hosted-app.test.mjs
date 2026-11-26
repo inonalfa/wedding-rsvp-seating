@@ -263,7 +263,7 @@ test("by default only Google sign-in is offered and password routes are closed",
     const text = await response.text();
     assert.match(text, /אישור הגעה פלוס/);
     assert.match(text, /\/assets\/logo\.webp/);
-    assert.match(text, /עדכון אחרון: 24\.11\.2026/);
+    assert.match(text, /עדכון אחרון: 26\.11\.2026/);
     assert.match(text, /mailto:office@alfa-ai\.co\.il/);
     assert.doesNotMatch(text, /טיוטה/);
   }

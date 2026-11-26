@@ -62,7 +62,7 @@ const worker = createHostedWorker(async (url, init) => {
   if (url === "https://challenges.cloudflare.com/turnstile/v0/siteverify") {
     const value = init.body.get("response");
     const action = value.split(":")[0];
-    const success = !challenges.has(value) && /^(login|signup|rsvp):[a-f0-9-]{36}$/.test(value);
+    const success = !challenges.has(value) && /^(login|signup|rsvp|capacity):[a-f0-9-]{36}$/.test(value);
     challenges.add(value);
     return Response.json({ success, hostname: "127.0.0.1", action });
   }
